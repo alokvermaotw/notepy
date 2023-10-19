@@ -1,23 +1,18 @@
 """
 Define two classes to model zettelkasten:
-    - Zk: represents a single note
+    - Note: represents a single note
     - ZettelKasten: represents the whole repository
 """
 
 from __future__ import annotations
 from pathlib import Path
-import argparse
-import os
-import sys
-import subprocess
 from datetime import datetime
 from hashlib import md5
-import sqlite3
 from dataclasses import dataclass
 
 
 @dataclass
-class Zk:
+class Note:
     """
     This class models a single note in a larger
     zettelkasten system.
@@ -29,7 +24,14 @@ class Zk:
     tags: list[str]
 
     @classmethod
-    def new(cls, title: str, author: str) -> Zk:
+    def new(cls, title: str, author: str) -> Note:
+        """
+        Create a new Note from metadata
+
+        :param title: title of the note
+        :param author: author of the note
+        :return: a new note
+        """
         metadata = cls._generate_metadata(title, author)
         zk = cls(**metadata)
 
