@@ -86,13 +86,13 @@ class HeaderParser(BaseParser):
         # error checking for no name/value pair
         if len(split_line) <= 1:
             error_text = ("The following line is missing a colon "
-                          f"followed by whitespace:\n\t{line}")
+                          f"followed by whitespace:\n{line}")
             raise FrontmatterException(error_text)
 
         # error checking for too many colons (no newline allowed)
         if len(split_line) >= 3:
             error_text = ("The following line has too many colons:"
-                          f"\n\t{line}\n\n\tYou can have only one colon "
+                          f"\n{line}\n\nYou can have only one colon "
                           "followed by whitespace.")
             raise FrontmatterException(error_text)
 
@@ -101,7 +101,8 @@ class HeaderParser(BaseParser):
         name = name.strip()
         value = value.strip()
         if name not in parsingObj:
-            error_text = f"{name} is not a recognized value or is a duplicate"
+            error_text = (f"'{name}' is not a recognized value or is a duplicate."
+                          f"\nRecognized values: {', '.join(self.parsingObj)}")
             raise FrontmatterException(error_text)
 
         parsingObj.discard(name)
@@ -132,8 +133,12 @@ class HeaderParser(BaseParser):
         :return: list of tags.
         """
         # TODO: issue a warning for malformed tags
+
+        # parse out every special char except # and _
         clean_tags = tags.translate(tags.maketrans(
             _INVALID_CHARS, ' ' * len(_INVALID_CHARS)))
+        # split tags, clean out whitespace and remove words
+        # not starting with #
         tmp_tags_list: list[str] = clean_tags.split(' ')
         tags_list = [tag for tag in tmp_tags_list
                      if tag != '' and tag.startswith('#')]
