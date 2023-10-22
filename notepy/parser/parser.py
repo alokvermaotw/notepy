@@ -4,6 +4,7 @@ from pathlib import Path
 from io import TextIOWrapper
 from datetime import datetime
 from string import punctuation
+import re
 
 
 _IN_CONTEXT = True
@@ -14,7 +15,7 @@ _INVALID_CHARS = punctuation.replace("_", "").replace("#", "")
 
 class BaseParser(ABC):
     @abstractmethod
-    def parse(self, path: Path) -> (dict[str], TextIOWrapper):
+    def parse(self, target: Path | TextIOWrapper) -> (dict[str], TextIOWrapper):
         ...
 
 
@@ -22,20 +23,23 @@ class HeaderParser(BaseParser):
     """
     Class dedicated to parse the frontmatter of a note.
 
-    Note: special_names is a list of names for which
-          a dedicated parser has been defined in the form of
-          _NAME_parser(self, value), where NAME is a member of
-          special_names.
+    :param parsing_obj: the values the parser should collect
+    :param delimiter: the delimiter symbol that represents start
+                      and end of the frontmatter
+    :param special_names: list of names for which a dedicated
+                          parser has been defined in the form
+                          of _NAME_parser(self, value), where
+                          NAME is a member of special_names
     """
 
-    def __init__(self, parsingObj: Sequence[str],
+    def __init__(self, parsing_obj: Sequence[str],
                  delimiter: str = '---',
                  special_names: list[str] = ['date', 'tags']):
-        self.parsingObj = parsingObj
+        self.parsing_obj = parsing_obj
         self.delimiter = delimiter
         self.special_names = special_names
 
-    def parse(self, path: Path) -> (dict[str], TextIOWrapper):
+    def parse(self, target: Path | TextIOWrapper) -> (dict[str], TextIOWrapper):
         """
         Main parsing function. It will open a file stream,
         parse the content, and return the parsed frontmatter
@@ -45,12 +49,12 @@ class HeaderParser(BaseParser):
         :return: parsed items in form of a dictionary,
                  and the rest of the file stream
         """
-        fileObj = open(path, "r")
+        file_obj = open(target, "r") if isinstance(target, Path) else target
         context = _OUT_CONTEXT
-        parsingObj = set(self.parsingObj)
-        parsedObj = {}
+        parsing_obj = set(self.parsing_obj)
+        parsed_obj = {}
 
-        for line in fileObj:
+        for line in file_obj:
             clean_line = line.strip()
 
             # check if we're inside frontmatter
@@ -61,20 +65,20 @@ class HeaderParser(BaseParser):
                 context = _OUT_CONTEXT
                 break
 
-            name, value = self._line_parser(clean_line, parsingObj)
+            name, value = self._line_parser(clean_line, parsing_obj)
             # apply special parsing to defined special names
             if name in self.special_names:
                 parser = getattr(self, f'_{name}_parser', HeaderParser._id)
                 value = parser(value)
 
-            parsedObj[name] = value
+            parsed_obj[name] = value
 
         else:
             raise FrontmatterException("Frontmatter has not been closed.")
 
-        return parsedObj, fileObj
+        return parsed_obj, file_obj
 
-    def _line_parser(self, line: str, parsingObj: set[str]) -> (str, Any):
+    def _line_parser(self, line: str, parsing_obj: set[str]) -> (str, Any):
         """
         Parse a line into key/value pairs.
 
@@ -100,12 +104,12 @@ class HeaderParser(BaseParser):
         name, value = split_line
         name = name.strip()
         value = value.strip()
-        if name not in parsingObj:
+        if name not in parsing_obj:
             error_text = (f"'{name}' is not a recognized value or is a duplicate."
-                          f"\nRecognized values: {', '.join(self.parsingObj)}")
+                          f"\nRecognized values: {', '.join(self.parsing_obj)}")
             raise FrontmatterException(error_text)
 
-        parsingObj.discard(name)
+        parsing_obj.discard(name)
 
         return name, value
 
@@ -124,13 +128,13 @@ class HeaderParser(BaseParser):
 
         return parsed_date
 
-    def _tags_parser(self, tags: str) -> list[str]:
+    def _tags_parser(self, tags: str) -> set[str]:
         """
         Tags parser.
 
         :param tags: string of tags separated by space.
                      Each tag must start with #.
-        :return: list of tags.
+        :return: iterable of tags.
         """
         # TODO: issue a warning for malformed tags
 
@@ -140,8 +144,8 @@ class HeaderParser(BaseParser):
         # split tags, clean out whitespace and remove words
         # not starting with #
         tmp_tags_list: list[str] = clean_tags.split(' ')
-        tags_list = [tag for tag in tmp_tags_list
-                     if tag != '' and tag.startswith('#')]
+        tags_list = set([tag for tag in tmp_tags_list
+                         if tag != '' and tag.startswith('#')])
 
         return tags_list
 
@@ -156,8 +160,69 @@ class HeaderParser(BaseParser):
 
 
 class BodyParser:
-    ...
+    """
+    Parser for body of note.
+
+    :param header1: identifier for header of note.
+    :param link_del: identifier for link encapsulation
+    """
+
+    def __init__(self,
+                 header1: str = "# ",
+                 link_del: (str, str) = ("[[", "]]")
+                 ):
+        self.header1 = header1
+        self.link_del = link_del
+
+    def parse(self, target: Path | TextIOWrapper) -> (dict[str], TextIOWrapper):
+        file_obj = open(target, "r") if isinstance(target, Path) else target
+        headers = []
+        links = []
+        context = _OUT_CONTEXT
+
+        for line in file_obj:
+            clean_line = line.strip()
+            # first line needs to be a title
+            if clean_line != "" and not clean_line.startswith(self.header1) and not context:
+                raise BodyException("The body needs to start with a title")
+            elif clean_line.startswith(self.header1) and not context:
+                context = _IN_CONTEXT
+
+            # parse for header 1
+            if clean_line.startswith(self.header1):
+                headers.append(clean_line)
+                continue
+
+            # parse for links
+            line_links = self._link_parser(clean_line)
+            links.extend(line_links)
+
+        return {'header': headers, 'links': set(links)}, file_obj
+
+    def _link_parser(self, line: str) -> set[str]:
+        """
+        Parse a line for links.
+
+        :param line: line to parse
+        :return: set of links contained in the line
+        """
+
+        start_link = self.link_del[0]
+        end_link = self.link_del[1]
+        # find links with regex
+        pattern = re.compile(f"{re.escape(start_link)}.*?{re.escape(end_link)}")
+        # remove link pre- and suffixes
+        line_links = [link.removeprefix(start_link).removesuffix(end_link)
+                      for link in pattern.findall(line)]
+        # remove empty link
+        line_links = [link for link in line_links if link != ""]
+
+        return line_links
 
 
 class FrontmatterException(Exception):
+    """This exception is raised when the header is not in the correct format"""
+
+
+class BodyException(Exception):
     """This exception is raised when the header is not in the correct format"""
