@@ -1,3 +1,6 @@
+"""
+Parsers for various elements of a note
+"""
 from typing import Sequence, Any
 from abc import ABC, abstractmethod
 from pathlib import Path
@@ -159,7 +162,7 @@ class HeaderParser(BaseParser):
         return obj
 
 
-class BodyParser:
+class BodyParser(BaseParser):
     """
     Parser for body of note.
 
@@ -225,4 +228,5 @@ class FrontmatterException(Exception):
 
 
 class BodyException(Exception):
-    """This exception is raised when the header is not in the correct format"""
+    """This exception is raised when the body
+     elements of a note are not in the correct format"""
