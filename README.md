@@ -17,6 +17,7 @@ CLI note manager for Zettelkasten-like note-taking.
 - [ ] Support for backlinks
 - [ ] Search for tags, links, words, title, date
 - [ ] SQLite caching of indexed notes
+- [ ] Scratchpad for temporary notes
 - [ ] Support for reindexing
 - [ ] Support for scratchpad where to save notes not ready
 - [ ] Support for TOML configuration
