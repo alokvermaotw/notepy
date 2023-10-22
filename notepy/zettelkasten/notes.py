@@ -13,8 +13,17 @@ from string import punctuation
 @dataclass
 class Note:
     """
-    This class models a single note in a larger
-    zettelkasten system.
+    This class models a single note in a larger zettelkasten system.
+
+    :param title: title of the note
+    :param author: author of the note
+    :param date: date of the note
+    :param zk_id: unique id of the note, in the form %Y%m%d%H%M%S-title, where
+                  title is in kebab-case
+    :param tags: tags of the note
+    :param links: links the note points to
+    :param frontmatter: the whole frontmatter of the note
+    :param body: the whole body of the note
     """
     title: str
     author: str
