@@ -9,6 +9,7 @@ from pathlib import Path
 from base_cli import BaseCli, CliException
 
 
+# TODO: add content of stdout to error messages
 class Git(BaseCli):
     """
     Wrapper for git cli
@@ -47,35 +48,86 @@ class Git(BaseCli):
         if git_path.is_dir():
             raise GitException(f"{path} is already a git repository.")
 
-        subprocess.run(['git', 'init', path], check=True, capture_output=True)
+        try:
+            # TODO: add .gitignore for .index.db
+            subprocess.run(['git', 'init', path],
+                           check=True, capture_output=True)
+            subprocess.run(['git', 'add', '.'], check=True,
+                           capture_output=True, cwd=path)
+            subprocess.run(['git', 'commit', '-m', 'First commit'],
+                           capture_output=True, cwd=path, check=True)
+        except subprocess.CalledProcessError as e:
+            raise GitException(f"""Something went wrong: {e}""")
+
         new_repo = cls(path)
 
         return new_repo
 
-    def add(self):
+    def add(self) -> None:
         """
         Add changed files to staging area.
         """
+        try:
+            subprocess.run([self.cmd, 'add', '-A'], check=True,
+                           cwd=self.path, capture_output=True)
+        except subprocess.CalledProcessError as e:
+            raise GitException(f"""Something went wrong: {e}""")
 
-    def commit(self, msg: Optional[str] = "commit notes"):
+    def commit(self, msg: Optional[str] = "commit notes") -> None:
         """
         Commit the staging area.
         """
+        try:
+            subprocess.run([self.cmd, 'commit', '-m', msg],
+                           check=True, cwd=self.path, capture_output=True)
+        except subprocess.CalledProcessError as e:
+            raise GitException(f"""Something went wrong: {e}""")
 
-    def push(self):
+    def push(self) -> None:
         """
         Push to origin.
         """
+        try:
+            if self._check_origin():
+                subprocess.run([self.cmd, 'push'], check=True,
+                               cwd=self.path, capture_output=True)
+            else:
+                raise GitException("""origin does not exist.""")
+        except subprocess.CalledProcessError as e:
+            raise GitException(f"""Something went wrong: {e}.
+                Check that origin is correct.""")
 
-    def add_origin(self, origin: str):
+    def add_origin(self, origin: str) -> None:
         """
         Add remote origin.
         """
+        if self._check_origin():
+            raise GitException("""origin already exists.""")
+        try:
+            subprocess.run([self.cmd, 'remote', 'add', 'origin',
+                           origin], check=True, cwd=self.path, capture_output=True)
+            subprocess.run([self.cmd, 'push', 'origin', 'master', '--set-upstream'],
+                           check=True, capture_output=True, cwd=self.path)
+        except subprocess.CalledProcessError as e:
+            raise GitException(f"""Something went wrong: {e}.
+                Check that origin is correct""")
 
-    def check_origin(self) -> bool:
+    def _check_origin(self) -> bool:
         """
         Check if origin is defined.
         """
+        origin = subprocess.run([self.cmd,
+                                 'config',
+                                 '--get',
+                                 'remote.origin.url'], cwd=self.path, capture_output=True)
+
+        origin_exists = True
+        if origin.returncode == 1:  # error code given by this failed action
+            origin_exists = False
+        elif origin.returncode != 0:  # for any other: raise exception
+            origin.check_returncode()
+
+        return origin_exists
 
     def __repr__(self) -> str:
 
@@ -92,7 +144,7 @@ class Git(BaseCli):
         """
         Check status of current git repo.
         """
-        status = subprocess.run(['git', 'status'],
+        status = subprocess.run([self.cmd, 'status'],
                                 check=True,
                                 capture_output=True,
                                 encoding='utf-8',
