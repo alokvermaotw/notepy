@@ -60,4 +60,4 @@ class BaseCli(ABC):
 
 
 class CliException(Exception):
-    """Exception to rise whenever some CLI wrapper throws"""
+    """Exception to raise whenever some CLI wrapper throws"""
