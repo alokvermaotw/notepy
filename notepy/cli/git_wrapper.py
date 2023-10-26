@@ -9,6 +9,7 @@ from pathlib import Path
 from notepy.cli.base_cli import BaseCli, CliException, run_and_handle
 
 
+# TODO: implement branch management?
 class Git(BaseCli):
     """
     Wrapper for git cli
@@ -20,6 +21,7 @@ class Git(BaseCli):
         super().__init__('git')
         self.path = path.expanduser()
         self.git_path = self.path / ".git"
+        self.branch = "master"
         self._is_repo()
 
     def _is_repo(self) -> None:
@@ -29,7 +31,8 @@ class Git(BaseCli):
         if not self.path.is_dir():
             raise GitException(f"'{self.path}' is not a directory.")
         if not self.git_path.is_dir():
-            raise GitException(f"'{self.path}' is not a git repository.")
+            raise GitException(f"'{self.path}' is not a git repository."
+                               "Use `Git.init('path')` to initialize.")
 
     @classmethod
     def init(cls, path: Path) -> Git:
@@ -93,7 +96,7 @@ class Git(BaseCli):
         if not self._origin_exists():
             raise GitException("""origin does not exist.""")
 
-        process = run_and_handle('git push',
+        process = run_and_handle(f'git push origin {self.branch}',
                                  exception=GitException,
                                  cwd=self.path,
                                  comment="Check that origin is correct")
@@ -106,24 +109,7 @@ class Git(BaseCli):
         if not self._origin_exists():
             raise GitException("""origin does not exist.""")
 
-        process = run_and_handle('git pull',
-                                 exception=GitException,
-                                 cwd=self.path,
-                                 comment="Check that origin is correct")
-        del process
-
-    def add_origin(self, origin: str) -> None:
-        """
-        Add remote origin.
-        """
-        if self._origin_exists():
-            raise GitException("""origin already exists.""")
-
-        process = run_and_handle(f'git remote add origin "{origin}"',
-                                 exception=GitException,
-                                 cwd=self.path,
-                                 comment="Check that origin is correct")
-        process = run_and_handle("git pull origin master --set-upstream",
+        process = run_and_handle(f'git pull origin {self.branch}',
                                  exception=GitException,
                                  cwd=self.path,
                                  comment="Check that origin is correct")
@@ -133,10 +119,8 @@ class Git(BaseCli):
         """
         Check if origin is defined.
         """
-        origin = subprocess.run(['git',
-                                 'config',
-                                 '--get',
-                                 'remote.origin.url'],
+        command = ['git', 'config', '--get', 'remote.origin.url']
+        origin = subprocess.run(command,
                                 cwd=self.path,
                                 capture_output=True)
 
@@ -144,7 +128,10 @@ class Git(BaseCli):
         if origin.returncode == 1:  # error code given by this failed action
             origin_exists = False
         elif origin.returncode != 0:  # for any other: raise exception
-            origin.check_returncode()
+            error_message = (f"Command '{' '.join(command)}' returned a non-zero exit status "
+                             f"{origin.returncode}. Below is the full stderr:\n\n"
+                             f"{origin.stdout.decode('utf-8')}")
+            raise GitException(error_message)
 
         return origin_exists
 
@@ -177,6 +164,54 @@ class Git(BaseCli):
     @status.deleter
     def status(self):
         raise GitException("You cannot do this operation.")
+
+    @property
+    def origin(self) -> str:
+        """
+        get origin URL.
+        """
+        command = ['git', 'config', '--get', 'remote.origin.url']
+        process = subprocess.run(command,
+                                 cwd=self.path,
+                                 capture_output=True)
+
+        if process.returncode == 1:  # error code given by this failed action
+            origin = ""
+        elif process.returncode != 0:  # for any other: raise exception
+            error_message = (f"Command '{' '.join(command)}' returned a non-zero exit status "
+                             f"{process.returncode}. Below is the full stderr:\n\n"
+                             f"{process.stdout.decode('utf-8')}")
+            raise GitException(error_message)
+        else:
+            origin = process.stdout.decode('utf-8')
+
+        return origin
+
+    @origin.setter
+    def origin(self, value) -> None:
+        """
+        Update origin
+        """
+        if self._origin_exists():
+            command = f'git remote set-url origin "{value}"'
+        else:
+            command = f'git remote add origin "{value}"'
+
+        process = run_and_handle(command, exception=GitException, cwd=self.path)
+        del process
+
+    @origin.deleter
+    def origin(self) -> None:
+        """
+        Delete origin
+        """
+        if not self._origin_exists():
+            raise GitException("origin does not exist.")
+
+        process = run_and_handle('git remote remove origin',
+                                 exception=GitException,
+                                 cwd=self.path)
+        del process
 
 
 class GitException(CliException):
