@@ -116,7 +116,7 @@ class HeaderParser(BaseParser):
 
         return name, value
 
-    def _date_parser(self, date: str):
+    def _date_parser(self, date: str) -> datetime:
         """
         Date value parser.
 
