@@ -6,39 +6,7 @@ from __future__ import annotations
 import subprocess
 from typing import Optional
 from pathlib import Path
-from notepy.cli.base_cli import BaseCli, CliException
-from shlex import split
-
-
-def run_and_handle(command: str,
-                   cwd=".",
-                   comment="") -> subprocess.CompletedProcess:
-    """
-    Utility function for CalledProcessError easy handling. It calls a command
-    and manages exceptions by calling GitException, together with the stderr
-    of the process.
-
-    :param command: the command to execute.
-    :param cwd: the working directory of the environment for the command.
-    :param comment: optional comment to add to the exception message.
-    :return: the completed process obect.
-    """
-    split_cmd = split(command)
-    process_result = subprocess.run(split_cmd,
-                                    cwd=cwd,
-                                    stderr=subprocess.STDOUT,
-                                    stdout=subprocess.PIPE)
-
-    process_returncode = process_result.returncode
-    if process_returncode != 0:
-        error_message = (f'Command "{command}" returned a non-zero exit status '
-                         f"{process_returncode}. Below is the full stderr:\n\n"
-                         f"{process_result.stdout.decode('utf-8')}")
-        error_message = error_message + \
-            f"\n\n{comment}" if comment else error_message
-        raise GitException(error_message)
-
-    return process_result
+from notepy.cli.base_cli import BaseCli, CliException, run_and_handle
 
 
 class Git(BaseCli):
@@ -88,9 +56,12 @@ class Git(BaseCli):
             for ignored in ignore_objects:
                 f.write(ignored+"\n")
 
-        process = run_and_handle("git init", cwd=path)
-        process = run_and_handle("git add .", cwd=path)
-        process = run_and_handle("git commit -m 'First commit'", cwd=path)
+        # initialize repository
+        process = run_and_handle("git init", exception=GitException, cwd=path)
+        process = run_and_handle("git add .", exception=GitException, cwd=path)
+        process = run_and_handle("git commit -m 'First commit'",
+                                 exception=GitException,
+                                 cwd=path)
         del process
 
         new_repo = cls(path)
@@ -101,14 +72,18 @@ class Git(BaseCli):
         """
         Add changed files to staging area.
         """
-        process = run_and_handle("git add -A", cwd=self.path)
+        process = run_and_handle("git add -A",
+                                 exception=GitException,
+                                 cwd=self.path)
         del process
 
     def commit(self, msg: Optional[str] = "commit notes") -> None:
         """
         Commit the staging area.
         """
-        process = run_and_handle(f"git commit -m '{msg}'")
+        process = run_and_handle(f"git commit -m '{msg}'",
+                                 exception=GitException,
+                                 cwd=self.path)
         del process
 
     def push(self) -> None:
@@ -119,6 +94,20 @@ class Git(BaseCli):
             raise GitException("""origin does not exist.""")
 
         process = run_and_handle('git push',
+                                 exception=GitException,
+                                 cwd=self.path,
+                                 comment="Check that origin is correct")
+        del process
+
+    def pull(self) -> None:
+        """
+        Pull from origin
+        """
+        if not self._origin_exists():
+            raise GitException("""origin does not exist.""")
+
+        process = run_and_handle('git pull',
+                                 exception=GitException,
                                  cwd=self.path,
                                  comment="Check that origin is correct")
         del process
@@ -131,9 +120,11 @@ class Git(BaseCli):
             raise GitException("""origin already exists.""")
 
         process = run_and_handle(f'git remote add origin "{origin}"',
+                                 exception=GitException,
                                  cwd=self.path,
                                  comment="Check that origin is correct")
-        process = run_and_handle("git push origin master --set-upstream",
+        process = run_and_handle("git pull origin master --set-upstream",
+                                 exception=GitException,
                                  cwd=self.path,
                                  comment="Check that origin is correct")
         del process
@@ -173,6 +164,7 @@ class Git(BaseCli):
         Check status of current git repo.
         """
         process = run_and_handle("git status",
+                                 exception=GitException,
                                  cwd=self.path)
         status = process.stdout.decode('utf-8')
 
