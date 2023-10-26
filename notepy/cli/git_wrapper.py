@@ -6,7 +6,6 @@ from __future__ import annotations
 import subprocess
 from typing import Optional
 from pathlib import Path
-from base_cli import BaseCli, CliException
 
 
 # TODO: add content of stdout to error messages

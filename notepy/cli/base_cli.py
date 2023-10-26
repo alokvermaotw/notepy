@@ -11,6 +11,7 @@ class BaseCli(ABC):
 
     def __init__(self, cmd: str):
         self.cmd = cmd
+        self._cmd_exists()
 
     def _cmd_exists(self):
         """

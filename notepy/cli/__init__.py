@@ -1,2 +1,2 @@
-from base_cli import BaseCli, CliException
-from git_wrapper import Git
+from notepy.cli.base_cli import BaseCli, CliException
+from notepy.cli.git_wrapper import Git
