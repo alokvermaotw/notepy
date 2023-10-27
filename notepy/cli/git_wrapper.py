@@ -10,6 +10,7 @@ from notepy.cli.base_cli import BaseCli, CliException, run_and_handle
 
 
 # TODO: implement branch management?
+# TODO: implement `git branch {branch} --set-upstream-to=`?
 class Git(BaseCli):
     """
     Wrapper for git cli
@@ -17,11 +18,11 @@ class Git(BaseCli):
     :param path: path to the repo
     """
 
-    def __init__(self, path: Path):
+    def __init__(self, path: Path, branch: str = "master"):
         super().__init__('git')
         self.path = path.expanduser()
         self.git_path = self.path / ".git"
-        self.branch = "master"
+        self.branch = branch
         self._is_repo()
 
     def _is_repo(self) -> None:
@@ -135,16 +136,6 @@ class Git(BaseCli):
 
         return origin_exists
 
-    def __repr__(self) -> str:
-
-        return str(self.path)
-
-    def __str__(self) -> str:
-        string = f"git repository at '{self.path}'\n\n"
-        string += f"{self.status}"
-
-        return string
-
     @property
     def status(self):
         """
@@ -191,6 +182,8 @@ class Git(BaseCli):
     def origin(self, value) -> None:
         """
         Update origin
+
+        :param value: the URL of origin.
         """
         if self._origin_exists():
             command = f'git remote set-url origin "{value}"'
@@ -212,6 +205,16 @@ class Git(BaseCli):
                                  exception=GitException,
                                  cwd=self.path)
         del process
+
+    def __repr__(self) -> str:
+
+        return str(self.path)
+
+    def __str__(self) -> str:
+        string = f"git repository at '{self.path}'\n\n"
+        string += f"{self.status}"
+
+        return string
 
 
 class GitException(CliException):
