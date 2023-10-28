@@ -79,6 +79,18 @@ class Note(BaseNote):
 
         return zk
 
+    def materialize(self) -> str:
+        """
+        Return content of note
+        """
+
+        note = self.frontmatter
+        note += "\n\n\n"
+        note += self.body
+        note += "\n"
+
+        return note
+
     @staticmethod
     def _generate_frontmatter(metadata: dict[str, str]) -> str:
         """
@@ -90,7 +102,7 @@ class Note(BaseNote):
         """
 
         frontmatter_metadata = metadata.copy()
-        frontmatter_metadata['tags'] = ''
+        frontmatter_metadata['tags'] = ", ".join(frontmatter_metadata['tags'])
         frontmatter_metadata['date'] = (frontmatter_metadata['date']
                                         .strftime("%Y-%m-%dT%H:%M:%S"))
         yml_header = '\n'.join(
