@@ -5,13 +5,39 @@ Define two classes to model zettelkasten:
 """
 
 from __future__ import annotations
+from abc import ABC, abstractmethod
 from datetime import datetime
 from dataclasses import dataclass
 from string import punctuation
+from pathlib import Path
+
+
+class BaseNote(ABC):
+    @classmethod
+    @abstractmethod
+    def new(cls, title: str, author: str) -> Note:
+        """
+        Create a new Note from metadata
+
+        :param title: title of the note
+        :param author: author of the note
+        :return: a new note
+        """
+
+    @staticmethod
+    @abstractmethod
+    def _generate_frontmatter(metadata: dict[str, str]) -> str:
+        """
+        Generates the frontmatter string of the
+        zettelkasten note
+
+        :param metadata: the metadata of the note
+        :return: the frontmatter string
+        """
 
 
 @dataclass
-class Note:
+class Note(BaseNote):
     """
     This class models a single note in a larger zettelkasten system.
 
