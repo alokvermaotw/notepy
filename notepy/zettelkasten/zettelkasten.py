@@ -4,9 +4,12 @@ from pathlib import Path
 from typing import Optional
 import warnings
 import sqlite3
-from ..parser.parser import HeaderParser, BodyParser
-from notes import Note
-from ..cli.git_wrapper import Git
+from notepy.parser.parser import HeaderParser, BodyParser
+from notepy.zettelkasten.notes import Note
+from notepy.cli.git_wrapper import Git
+
+
+_MAIN_TABLE = ""
 
 
 @dataclass
@@ -18,23 +21,20 @@ class Zettelkasten:
     :param index: the connection to the database.
     :param git: whether the vault is a git repo.
     """
-    vault: Path
+    vault: Path | str
     index: sqlite3.Connection
-    git: Optional[bool] = False
+    git: Optional[Git] = None
 
     def __post_init__(self) -> None:
+        self.vault = Path(self.vault).expanduser()
         if not self.vault.is_dir():
             raise ZettelkastenException(f"Vault '{self.vault}' is not a directory "
                                         "or does not exist.")
-        if self.git:
-            git_repo = self.vault.parent.joinpath(".git")
-            if not git_repo.is_dir():
-                raise ZettelkastenException(f"Vault '{self.vault}' is not a git repo!")
 
     @classmethod
     def initialize(cls,
-                   path: Path,
-                   git: Optional[bool] = False,
+                   path: str | Path,
+                   git_init: bool = False,
                    force: bool = False) -> Zettelkasten:
         """
         Initialize a new vault. A vault is made of a collection of
@@ -46,15 +46,52 @@ class Zettelkasten:
         :return: a new Zettelkasten object
         """
 
-        if path.exists() and not force:
-            raise ZettelkastenException(f"'{path}' already exists! Use 'force=True'"
-                                        "to force the creation of the vault.")
+        path = Path(path).expanduser()
 
-        index = path.parent.joinpath(".index.db")
+        # check if a zettelkasten has been already initialized
+        if cls.is_zettelkasten(path) and not force:
+            raise ZettelkastenException(f"'{path}' has already been initialized!"
+                                        "use 'force=True' to force re-initialization")
+
+        zk_args = {}
+
+        # create vault
+        path.mkdir(exist_ok=True)
+        zk_args['vault'] = path
+
+        # create .last file
+        last = path / ".last"
+        last.touch()
+
+        # create connection
+        index = path / ".index.db"
         conn = sqlite3.connect(index)
+        zk_args['index'] = conn
 
+        # create scratchpad
+        scratchpad = path / 'scratchpad'
+        scratchpad.mkdir(exist_ok=True)
 
+        # create git repo
+        if git_init:
+            to_ignore = ['.last', '.index.db', 'scratchpad']
+            git_path = path / ".git"
+            git = Git(path) if git_path.exists() else Git.init(path, to_ignore=to_ignore)
+            zk_args['git'] = git
 
+        return cls(**zk_args)
+
+    @staticmethod
+    def is_zettelkasten(path: str | Path) -> bool:
+        path = Path(path).expanduser()
+        is_zettelkasten = True
+        is_zettelkasten *= path.is_dir()
+        is_zettelkasten *= (path / ".index.db").is_file()
+        is_zettelkasten *= (path / "scratchpad").is_dir()
+        is_zettelkasten *= (path / ".last").is_file()
+
+        return bool(is_zettelkasten)
+        
     def add(self, path: Path) -> None:
         """
         Add a new note to the vault
