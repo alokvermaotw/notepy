@@ -18,7 +18,7 @@ _INVALID_CHARS = punctuation.replace("_", "").replace("#", "")
 
 class BaseParser(ABC):
     @abstractmethod
-    def parse(self, target: Path | TextIOWrapper) -> (dict[str], TextIOWrapper):
+    def parse(self, target: str | Path | TextIOWrapper) -> (dict[str], TextIOWrapper):
         ...
 
 
@@ -52,7 +52,8 @@ class HeaderParser(BaseParser):
         :return: parsed items in form of a dictionary,
                  and the rest of the file stream
         """
-        file_obj = open(target, "r") if isinstance(target, Path) else target
+        file_obj = open(Path(target).expanduser(), "r") if isinstance(
+            target, (Path, str)) else target
         context = _OUT_CONTEXT
         parsing_obj = set(self.parsing_obj)
         parsed_obj = {}
@@ -177,8 +178,9 @@ class BodyParser(BaseParser):
         self.header1 = header1
         self.link_del = link_del
 
-    def parse(self, target: Path | TextIOWrapper) -> (dict[str], TextIOWrapper):
-        file_obj = open(target, "r") if isinstance(target, Path) else target
+    def parse(self, target: str | Path | TextIOWrapper) -> (dict[str], TextIOWrapper):
+        file_obj = open(Path(target).expanduser(), "r") if isinstance(
+            target, (Path, str)) else target
         headers = []
         links = []
         context = _OUT_CONTEXT

@@ -11,6 +11,7 @@ from notepy.cli.base_cli import BaseCli, CliException, run_and_handle
 
 # TODO: implement branch management?
 # TODO: implement `git branch {branch} --set-upstream-to=`?
+# TODO: better error handling for when dir is deleted
 class Git(BaseCli):
     """
     Wrapper for git cli
@@ -18,14 +19,14 @@ class Git(BaseCli):
     :param path: path to the repo
     """
 
-    def __init__(self, path: Path, branch: str = "master"):
+    def __init__(self, path: Path | str, branch: str = "master"):
         super().__init__('git')
-        self.path = path.expanduser()
+        self.path = Path(path).expanduser()
         self.git_path = self.path / ".git"
         self.branch = branch
-        self._is_repo()
+        self._check_repo()
 
-    def _is_repo(self) -> None:
+    def _check_repo(self) -> None:
         """
         Check that the directory provided is a git repo.
         """
@@ -36,14 +37,14 @@ class Git(BaseCli):
                                "Use `Git.init('path')` to initialize.")
 
     @classmethod
-    def init(cls, path: Path) -> Git:
+    def init(cls, path: Path | str, to_ignore: Optional[list[str]] = []) -> Git:
         """
         Initialize a new git repo in the directory provided.
 
         :param path: absolute path to the new git repo.
         :return: a Git wrapper
         """
-        path = path.expanduser()
+        path = Path(path).expanduser()
         git_path = path / ".git"
 
         # sanity checks
@@ -51,13 +52,14 @@ class Git(BaseCli):
             raise GitException(f"'{path}' is not a directory.")
         if git_path.is_dir():
             raise GitException(f"'{path}' is already a git repository.")
+        elif git_path.is_file():
+            raise GitException(f"'{git_path}' is not a directory.")
 
         # create gitignore
         gitignore = path / ".gitignore"
         gitignore.touch(exist_ok=True)
-        ignore_objects = ['.index.db', 'scratchpad', '.last']
-        with open(gitignore, "w") as f:
-            for ignored in ignore_objects:
+        with open(gitignore, "a") as f:
+            for ignored in to_ignore:
                 f.write(ignored+"\n")
 
         # initialize repository
@@ -217,5 +219,6 @@ class Git(BaseCli):
         return string
 
 
+# TODO: more granular exceptions?
 class GitException(CliException):
     """Error raised when git is involved"""
