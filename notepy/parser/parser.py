@@ -187,10 +187,13 @@ class BodyParser(BaseParser):
             target, (Path, str)) else target
         headers = []
         links = []
+        body = []
         context = _OUT_CONTEXT
 
         for line in file_obj:
             clean_line = line.strip()
+            body.append(clean_line)
+
             # first line needs to be a title
             if clean_line != "" and not clean_line.startswith(self.header1) and not context:
                 raise BodyException("The body needs to start with a title")
@@ -206,7 +209,7 @@ class BodyParser(BaseParser):
             line_links = self._link_parser(clean_line)
             links.extend(line_links)
 
-        return {'header': headers, 'links': set(links)}, file_obj
+        return {'header': headers, 'links': set(links), 'body': body}, file_obj
 
     def _link_parser(self, line: str) -> set[str]:
         """
