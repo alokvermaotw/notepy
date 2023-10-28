@@ -37,12 +37,12 @@ class HeaderParser(BaseParser):
 
     def __init__(self, parsing_obj: Sequence[str],
                  delimiter: str = '---',
-                 special_names: list[str] = ['date', 'tags']):
+                 special_names: Sequence[str] = ['date', 'tags']):
         self.parsing_obj = parsing_obj
         self.delimiter = delimiter
         self.special_names = special_names
 
-    def parse(self, target: Path | TextIOWrapper) -> (dict[str], TextIOWrapper):
+    def parse(self, target: str | Path | TextIOWrapper) -> (dict[str], TextIOWrapper):
         """
         Main parsing function. It will open a file stream,
         parse the content, and return the parsed frontmatter
@@ -178,7 +178,7 @@ class BodyParser(BaseParser):
         self.header1 = header1
         self.link_del = link_del
 
-    def parse(self, target: str | Path | TextIOWrapper) -> (dict[str], TextIOWrapper):
+    def parse(self, target: str | Path | TextIOWrapper) -> (dict[Sequence[str]], TextIOWrapper):
         file_obj = open(Path(target).expanduser(), "r") if isinstance(
             target, (Path, str)) else target
         headers = []
