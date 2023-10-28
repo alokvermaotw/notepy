@@ -1,2 +1,2 @@
-from notes import Note
-from zettelkasten import Zettelkasten
+from notepy.zettelkasten.notes import Note
+from notepy.zettelkasten.zettelkasten import Zettelkasten
