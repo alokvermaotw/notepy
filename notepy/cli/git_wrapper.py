@@ -92,6 +92,16 @@ class Git(BaseCli):
                                  cwd=self.path)
         del process
 
+    def has_changed(self) -> bool:
+        """
+        Determine if there are changes to commit
+        """
+        changed = False
+        if "nothing to commit" not in self.status:
+            changed = True
+
+        return changed
+
     def push(self) -> None:
         """
         Push to origin.
@@ -117,6 +127,13 @@ class Git(BaseCli):
                                  cwd=self.path,
                                  comment="Check that origin is correct")
         del process
+
+    def save(self) -> None:
+        if self.has_changed():
+            self.add()
+            self.commit()
+            if self.origin:
+                self.push()
 
     def _origin_exists(self) -> bool:
         """
