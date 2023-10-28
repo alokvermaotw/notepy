@@ -9,14 +9,14 @@ def run_and_handle(command: str,
                    cwd: Path | str = ".",
                    comment: str = "") -> subprocess.CompletedProcess:
     """
-    Utility function for CalledProcessError easy handling. It calls a command
+    Utility function for easy CalledProcessError handling. It calls a command
     and manages exceptions by calling GitException, together with the stderr
     of the process.
 
     :param command: the command to execute.
     :param cwd: the working directory of the environment for the command.
     :param comment: optional comment to add to the exception message.
-    :return: the completed process obect.
+    :return: the completed process object.
     """
     split_cmd = split(command)
     process_result = subprocess.run(split_cmd,
