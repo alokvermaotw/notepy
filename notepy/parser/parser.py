@@ -93,9 +93,13 @@ class HeaderParser(BaseParser):
 
         # error checking for no name/value pair
         if len(split_line) <= 1:
-            error_text = ("The following line is missing a colon "
-                          f"followed by whitespace:\n{line}")
-            raise FrontmatterException(error_text)
+            # if the name has no values, e.g.: `tags:`, don't raise exception
+            if line.endswith(':'):
+                split_line = [line.removesuffix(':'), '']
+            else:
+                error_text = ("The following line is missing a colon "
+                              f"followed by whitespace:\n{line}")
+                raise FrontmatterException(error_text)
 
         # error checking for too many colons (no newline allowed)
         if len(split_line) >= 3:
