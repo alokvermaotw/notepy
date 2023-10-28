@@ -1,15 +1,24 @@
 from __future__ import annotations
-from dataclasses import dataclass, fields
+from dataclasses import dataclass, fields, field
 from pathlib import Path
-from typing import Optional
-import warnings
+from typing import Optional, Sequence
 import sqlite3
-from notepy.parser.parser import HeaderParser, BodyParser
-from notepy.zettelkasten.notes import Note
-from notepy.cli.git_wrapper import Git
+from notepy.parser import HeaderParser, BodyParser
+from notepy.zettelkasten import Note, BaseNote
+from notepy.cli import Git
+from tempfile import NamedTemporaryFile
+import subprocess
 
 
-_MAIN_TABLE = ""
+_MAIN_TABLE_STMT = """CREATE TABLE index(zk_id,
+                   title,
+                   author,
+                   date,
+                   tags,
+                   links,
+                   PRIMARY KEY(zk_id))"""
+_INSERT_STMT = "INSERT INTO index VALUES (?, ?, ?, ?, ?, ?)"
+_DELETE_STMT = "DELETE FROM index WHERE zk_id = ?"
 
 
 @dataclass
@@ -24,9 +33,18 @@ class Zettelkasten:
     vault: Path | str
     index: sqlite3.Connection
     git: Optional[Git] = None
+    note_obj: BaseNote = Note
+    delimiter: str = "---"
+    header: str = "# "
+    link_del: (str, str) = ('[[', ']]')
+    special_values: tuple[str] = ('date', 'tags')
 
     def __post_init__(self) -> None:
         self.vault = Path(self.vault).expanduser()
+        self.header_obj = [note_field.name
+                           for note_field in fields(self.note_obj)
+                           if note_field.name not in ['links', 'frontmatter', 'body']]
+
         if not self.vault.is_dir():
             raise ZettelkastenException(f"Vault '{self.vault}' is not a directory "
                                         "or does not exist.")
@@ -42,7 +60,8 @@ class Zettelkasten:
         git repository.
 
         :param path: path to the new vault.
-        :param git: whether to initialize a git repo.
+        :param git_init: whether to initialize a git repo.
+        :param force: whether to force initialization.
         :return: a new Zettelkasten object
         """
 
@@ -77,12 +96,19 @@ class Zettelkasten:
             to_ignore = ['.last', '.index.db', 'scratchpad']
             git_path = path / ".git"
             git = Git(path) if git_path.exists() else Git.init(path, to_ignore=to_ignore)
+            git.save()
             zk_args['git'] = git
 
         return cls(**zk_args)
 
     @staticmethod
     def is_zettelkasten(path: str | Path) -> bool:
+        """
+        Check whether provided path is already a vault.
+
+        :param path: path to the vault.
+        :return: True or False
+        """
         path = Path(path).expanduser()
         is_zettelkasten = True
         is_zettelkasten *= path.is_dir()
@@ -91,13 +117,69 @@ class Zettelkasten:
         is_zettelkasten *= (path / ".last").is_file()
 
         return bool(is_zettelkasten)
-        
-    def add(self, path: Path) -> None:
+
+    def add(self, note: BaseNote) -> None:
         """
         Add a new note to the vault
         """
         # parsing_objects = [obj.name for obj in fields()]
         pass
+
+    # TODO: should we ask for confirmation here or in a higher level module?
+    # TODO: use a higher level editor_wrapper instead of hx
+    def new(self,
+            title: str,
+            author: str,
+            to_scratchpad: bool = False,
+            confirmation: bool = False) -> None:
+        """
+        Create a new note and add it to the vault.
+        """
+        tmp_note = self.note_obj.new(title, author)
+        filename = Path(tmp_note.zk_id).with_suffix(".md")
+        scratchpad = (self.vault / "scratchpad")
+        scratchpad.mkdir(exist_ok=True)
+
+        with NamedTemporaryFile("r+", dir=scratchpad, suffix=".md") as f:
+            f.write(tmp_note.materialize())
+            f.seek(0)
+            subprocess.run(['hx', f.name],
+                           cwd=self.vault)
+
+            if confirmation:
+                location = "vault" if not to_scratchpad else "scratchpad"
+                response = input(f"Save to {location}? [Y/n]: ")
+                if response.lower() in ['n', 'no', 'nope']:
+                    return None
+
+            f.seek(0)
+            header_parser = HeaderParser(parsing_obj=self.header_obj,
+                                         delimiter=self.delimiter,
+                                         special_names=self.special_values)
+            body_parser = BodyParser(header1=self.header,
+                                     link_del=self.link_del)
+            frontmatter_meta, _ = header_parser.parse(f)
+            body_meta, _ = body_parser.parse(f)
+
+        frontmatter = self.note_obj._generate_frontmatter(frontmatter_meta)
+        links = body_meta['links']
+        body = "\n".join(body_meta['body']).strip()
+        new_note = Note(links=links, frontmatter=frontmatter,
+                        body=body, **frontmatter_meta)
+        if to_scratchpad:
+            # create scratchpad if it doesn't exist
+            note_path = scratchpad / filename
+
+        else:
+            note_path = self.vault / filename
+            self.add(new_note)
+
+        with open(note_path, "w") as f:
+            f.write(new_note.materialize())
+
+        # TODO: when nothing to commit, don't raise error
+        if self.git:
+            self.git.save()
 
 
 class ZettelkastenException(Exception):
