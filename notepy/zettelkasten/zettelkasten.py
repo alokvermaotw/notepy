@@ -38,7 +38,6 @@ class Zettelkasten:
     header: str = "# "
     link_del: (str, str) = ('[[', ']]')
     special_values: tuple[str] = ('date', 'tags')
-    max_last_opened: int = 10
 
     def __post_init__(self) -> None:
         self.vault = Path(self.vault).expanduser()
@@ -151,8 +150,49 @@ class Zettelkasten:
         with open(self.last, "w") as f:
             f.write(str(name)+"\n")
 
-    # TODO: should we ask for confirmation here or in a higher level module?
     # TODO: use a higher level editor_wrapper instead of hx
+    def _edit_temporary_note(self,
+                             note: Note,
+                             confirmation: bool = False) -> Note:
+        """
+        Edit a note in a temporary file.
+
+        :param note: the note to edit.
+        :param confirmation: whether to ask for confirmation.
+        :return: if confirmation=True and input was no, return None. Else the note.
+        """
+
+        # check if scratchpad exists. We are going to create the temporary
+        # note inside the scratchpad so that its creation is not
+        # detected by git, since by default scratchpad is in .gitignore
+        scratchpad = (self.vault / "scratchpad")
+        scratchpad.mkdir(exist_ok=True)
+
+        with NamedTemporaryFile("w", dir=scratchpad, suffix=".md") as f:
+            # write the note in the temporary file
+            f.write(note.materialize())
+            f.seek(0)
+            subprocess.run(['hx', f.name],
+                           cwd=self.vault)
+
+            # TODO: consider whether opening two handles to same file is good idea
+            # TODO: make read arguments less implementation dependent.
+            # create the note from the new data
+            new_note = self.note_obj.read(path=f.name,
+                                          parsing_obj=self.header_obj,
+                                          delimiter=self.delimiter,
+                                          special_names=self.special_values,
+                                          header=self.header,
+                                          link_del=self.link_del)
+        # ask for confirmation
+        if confirmation:
+            response = input("Save note? [Y/n]: ")
+            if response.lower() in ['n', 'no', 'nope']:
+                new_note = None
+
+        return new_note
+
+    # TODO: should we ask for confirmation here or in a higher level module?
     def new(self,
             title: str,
             author: str,
@@ -168,36 +208,15 @@ class Zettelkasten:
         """
         # new note
         tmp_note = self.note_obj.new(title, author)
-        filename = Path(tmp_note.zk_id).with_suffix(".md")
 
-        # check if scratchpad exists. We are going to create the temporary
-        # note inside the scratchpad so that its creation is not
-        # detected by git, since by default scratchpad is in .gitignore
-        scratchpad = (self.vault / "scratchpad")
-        scratchpad.mkdir(exist_ok=True)
+        # create new note
+        new_note = self._edit_temporary_note(tmp_note, confirmation)
+        if new_note is None:
+            return None
 
-        with NamedTemporaryFile("w", dir=scratchpad, suffix=".md") as f:
-            # write the note in the temporary file
-            f.write(tmp_note.materialize())
-            f.seek(0)
-            subprocess.run(['hx', f.name],
-                           cwd=self.vault)
+        scratchpad = self.vault / "scratchpad"
+        filename = Path(new_note.zk_id).with_suffix(".md")
 
-            # ask for confirmation
-            if confirmation:
-                location = "vault" if not to_scratchpad else "scratchpad"
-                response = input(f"Save to {location}? [Y/n]: ")
-                if response.lower() in ['n', 'no', 'nope']:
-                    return None
-
-            # TODO: consider whether opening two handles to same file is good idea
-            # create the note from the new data
-            new_note = self.note_obj.read(path=f.name,
-                                          parsing_obj=self.header_obj,
-                                          delimiter=self.delimiter,
-                                          special_names=self.special_values,
-                                          header=self.header,
-                                          link_del=self.link_del)
         if to_scratchpad:
             note_path = scratchpad / filename
         else:
