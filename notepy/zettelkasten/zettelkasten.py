@@ -3,13 +3,13 @@ from dataclasses import dataclass, fields
 from pathlib import Path
 from typing import Optional, Sequence
 import sqlite3
-from notepy.zettelkasten import Note, BaseNote
+from notepy.zettelkasten import Note
 from notepy.cli import Git
 from tempfile import NamedTemporaryFile
 import subprocess
 
 
-_MAIN_TABLE_STMT = """CREATE TABLE IF NOT EXISTS zettelkasten(zk_id,
+_CREATE_TABLE_STMT = """CREATE TABLE IF NOT EXISTS zettelkasten(zk_id,
                    title,
                    author,
                    date,
@@ -38,6 +38,7 @@ class Zettelkasten:
     header: str = "# "
     link_del: (str, str) = ('[[', ']]')
     special_values: tuple[str] = ('date', 'tags')
+    max_last_opened: int = 10
 
     def __post_init__(self) -> None:
         self.vault = Path(self.vault).expanduser()
@@ -87,7 +88,7 @@ class Zettelkasten:
         index = path / ".index.db"
         conn = sqlite3.connect(index)
         with conn:
-            conn.execute(_MAIN_TABLE_STMT)
+            conn.execute(_CREATE_TABLE_STMT)
         zk_args['index'] = conn
 
         # create scratchpad
@@ -121,6 +122,7 @@ class Zettelkasten:
 
         return bool(is_zettelkasten)
 
+    # TODO: make it so payload is note-agnostic
     def add(self, note: Note) -> None:
         """
         Add a new note to the vault
@@ -140,11 +142,14 @@ class Zettelkasten:
         except sqlite3.IntegrityError as e:
             raise ZettelkastenException("SQL error") from e
 
-    def _add_last_opened(self, name: Path | str) -> None:
-        with open(self.last, "r+") as f:
-            lines: list[str] = f.readlines()[:9]
-            lines.insert(0, str(name)+"\n")
-            f.writelines(lines)
+    def _add_last_opened(self, name: str | Path) -> None:
+        """
+        Add the last opened note to .last file
+
+        :param name: name of the note that was last opened.
+        """
+        with open(self.last, "w") as f:
+            f.write(str(name)+"\n")
 
     # TODO: should we ask for confirmation here or in a higher level module?
     # TODO: use a higher level editor_wrapper instead of hx
@@ -197,8 +202,7 @@ class Zettelkasten:
             note_path = scratchpad / filename
         else:
             note_path = self.vault / filename
-            # if not in scratchpad, add the metadata to the database,
-            # and the note to .last
+            # if not in scratchpad, add the metadata to the database
             self.add(new_note)
 
         # save the new note
@@ -210,7 +214,7 @@ class Zettelkasten:
 
         # add and commit
         if self.git:
-            self.git.save()
+            self.git.save(msg=f'Commit "{new_note.title}"')
 
 
 class ZettelkastenException(Exception):
