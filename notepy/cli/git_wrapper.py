@@ -128,10 +128,10 @@ class Git(BaseCli):
                                  comment="Check that origin is correct")
         del process
 
-    def save(self) -> None:
+    def save(self, msg: str = "commit notes") -> None:
         if self.has_changed():
             self.add()
-            self.commit()
+            self.commit(msg)
             if self.origin:
                 self.push()
 
