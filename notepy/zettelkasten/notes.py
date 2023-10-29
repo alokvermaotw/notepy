@@ -84,8 +84,8 @@ class Note(BaseNote):
     author: str
     date: datetime
     zk_id: str
-    tags: list[str]
-    links: list[str]
+    tags: Sequence[str]
+    links: Sequence[str]
     frontmatter: str
     body: str
 
