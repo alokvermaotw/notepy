@@ -9,15 +9,15 @@ from tempfile import NamedTemporaryFile
 import subprocess
 
 
-_MAIN_TABLE_STMT = """CREATE TABLE index(zk_id,
+_MAIN_TABLE_STMT = """CREATE TABLE IF NOT EXISTS zettelkasten(zk_id,
                    title,
                    author,
                    date,
                    tags,
                    links,
                    PRIMARY KEY(zk_id))"""
-_INSERT_STMT = "INSERT INTO index VALUES (?, ?, ?, ?, ?, ?)"
-_DELETE_STMT = "DELETE FROM index WHERE zk_id = ?"
+_INSERT_STMT = "INSERT INTO zettelkasten VALUES (?, ?, ?, ?, ?, ?)"
+_DELETE_STMT = "DELETE FROM zettelkasten WHERE zk_id = ?"
 
 
 # TODO: implement an abstract class for this.
@@ -41,6 +41,7 @@ class Zettelkasten:
 
     def __post_init__(self) -> None:
         self.vault = Path(self.vault).expanduser()
+        self.last = self.vault / ".last"
         self.header_obj = [note_field.name
                            for note_field in fields(self.note_obj)
                            if note_field.name not in ['links', 'frontmatter', 'body']]
@@ -82,9 +83,11 @@ class Zettelkasten:
         last = path / ".last"
         last.touch()
 
-        # create connection
+        # create connection and main table
         index = path / ".index.db"
         conn = sqlite3.connect(index)
+        with conn:
+            conn.execute(_MAIN_TABLE_STMT)
         zk_args['index'] = conn
 
         # create scratchpad
@@ -118,12 +121,30 @@ class Zettelkasten:
 
         return bool(is_zettelkasten)
 
-    def add(self, note: BaseNote) -> None:
+    def add(self, note: Note) -> None:
         """
         Add a new note to the vault
+
+        :param note: note to process.
         """
-        # parsing_objects = [obj.name for obj in fields()]
-        pass
+        payload = (note.zk_id,
+                   note.title,
+                   note.author,
+                   note.date,
+                   ", ".join(note.tags),
+                   ", ".join(note.links),
+                   )
+        try:
+            with self.index as conn:
+                conn.execute(_INSERT_STMT, payload)
+        except sqlite3.IntegrityError as e:
+            raise ZettelkastenException("SQL error") from e
+
+    def _add_last_opened(self, name: Path | str) -> None:
+        with open(self.last, "r+") as f:
+            lines: list[str] = f.readlines()[:9]
+            lines.insert(0, str(name)+"\n")
+            f.writelines(lines)
 
     # TODO: should we ask for confirmation here or in a higher level module?
     # TODO: use a higher level editor_wrapper instead of hx
@@ -140,17 +161,24 @@ class Zettelkasten:
         :param to_scratchpad: whether the note should go to the scratchpad.
         :param confirmation: whether to ask for confirmation to save the note.
         """
+        # new note
         tmp_note = self.note_obj.new(title, author)
         filename = Path(tmp_note.zk_id).with_suffix(".md")
+
+        # check if scratchpad exists. We are going to create the temporary
+        # note inside the scratchpad so that its creation is not
+        # detected by git, since by default scratchpad is in .gitignore
         scratchpad = (self.vault / "scratchpad")
         scratchpad.mkdir(exist_ok=True)
 
-        with NamedTemporaryFile("r+", dir=scratchpad, suffix=".md") as f:
+        with NamedTemporaryFile("w", dir=scratchpad, suffix=".md") as f:
+            # write the note in the temporary file
             f.write(tmp_note.materialize())
             f.seek(0)
             subprocess.run(['hx', f.name],
                            cwd=self.vault)
 
+            # ask for confirmation
             if confirmation:
                 location = "vault" if not to_scratchpad else "scratchpad"
                 response = input(f"Save to {location}? [Y/n]: ")
@@ -158,6 +186,7 @@ class Zettelkasten:
                     return None
 
             # TODO: consider whether opening two handles to same file is good idea
+            # create the note from the new data
             new_note = self.note_obj.read(path=f.name,
                                           parsing_obj=self.header_obj,
                                           delimiter=self.delimiter,
@@ -165,15 +194,21 @@ class Zettelkasten:
                                           header=self.header,
                                           link_del=self.link_del)
         if to_scratchpad:
-            # create scratchpad if it doesn't exist
             note_path = scratchpad / filename
         else:
             note_path = self.vault / filename
+            # if not in scratchpad, add the metadata to the database,
+            # and the note to .last
             self.add(new_note)
 
+        # save the new note
         with open(note_path, "w") as f:
             f.write(new_note.materialize())
 
+        # update .last file
+        self._add_last_opened(filename)
+
+        # add and commit
         if self.git:
             self.git.save()
 
