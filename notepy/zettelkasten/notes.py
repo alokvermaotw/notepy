@@ -10,6 +10,8 @@ from datetime import datetime
 from dataclasses import dataclass
 from string import punctuation
 from pathlib import Path
+from typing import Sequence
+from notepy.parser import HeaderParser, BodyParser
 
 
 class BaseNote(ABC):
@@ -33,6 +35,33 @@ class BaseNote(ABC):
 
         :param metadata: the metadata of the note
         :return: the frontmatter string
+        """
+
+    @abstractmethod
+    def materialize(self) -> str:
+        """
+        Return content of note
+        """
+
+    @classmethod
+    @abstractmethod
+    def read(cls,
+             path: str | Path,
+             parsing_obj: Sequence[str],
+             delimiter: str = "---",
+             special_names: Sequence[str] = ("date", "tags"),
+             header: str = "# ",
+             link_del: Sequence[str] = ('[[', ']]')) -> Note:
+        """
+        Read a note from a file.
+
+        :param path: path to the note.
+        :param parsing_obj: what names to parse in the frontmatter.
+        :param delimiter: delimiter of the frontmatter.
+        :param special_names: names of the frontmatter that need to be specially parsed.
+        :param header: how a header is defined.
+        :param link_del: how a link is delimited.
+        :return: the note
         """
 
 
@@ -79,6 +108,42 @@ class Note(BaseNote):
 
         return zk
 
+    @classmethod
+    def read(cls,
+             path: str | Path,
+             parsing_obj: Sequence[str],
+             delimiter: str = "---",
+             special_names: Sequence[str] = ("date", "tags"),
+             header: str = "# ",
+             link_del: Sequence[str] = ('[[', ']]')) -> Note:
+        """
+        Read a note from a file.
+
+        :param path: path to the note.
+        :param parsing_obj: what names to parse in the frontmatter.
+        :param delimiter: delimiter of the frontmatter.
+        :param special_names: names of the frontmatter that need to be specially parsed.
+        :param header: how a header is defined.
+        :param link_del: how a link is delimited.
+        :return: the note
+        """
+        header_parser = HeaderParser(parsing_obj=parsing_obj,
+                                     delimiter=delimiter,
+                                     special_names=special_names)
+        body_parser = BodyParser(header1=header,
+                                 link_del=link_del)
+        with open(path) as f:
+            frontmatter_meta, _ = header_parser.parse(f)
+            body_meta, _ = body_parser.parse(f)
+
+        frontmatter = cls._generate_frontmatter(frontmatter_meta)
+        links = body_meta['links']
+        body = "\n".join(body_meta['body']).strip()
+        new_note = Note(links=links, frontmatter=frontmatter,
+                        body=body, **frontmatter_meta)
+
+        return new_note
+
     def materialize(self) -> str:
         """
         Return content of note
@@ -116,7 +181,7 @@ class Note(BaseNote):
     def _generate_metadata(title: str, author: str) -> dict[str, str]:
         """
         Generates the metadata dictionary for
-        the current zettelkasten note.
+        a nrew zettelkasten note.
 
         :param title: the title of the note
         :param author: the author of the note

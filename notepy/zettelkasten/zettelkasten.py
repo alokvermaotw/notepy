@@ -1,9 +1,8 @@
 from __future__ import annotations
-from dataclasses import dataclass, fields, field
+from dataclasses import dataclass, fields
 from pathlib import Path
 from typing import Optional, Sequence
 import sqlite3
-from notepy.parser import HeaderParser, BodyParser
 from notepy.zettelkasten import Note, BaseNote
 from notepy.cli import Git
 from tempfile import NamedTemporaryFile
@@ -21,6 +20,7 @@ _INSERT_STMT = "INSERT INTO index VALUES (?, ?, ?, ?, ?, ?)"
 _DELETE_STMT = "DELETE FROM index WHERE zk_id = ?"
 
 
+# TODO: implement an abstract class for this.
 @dataclass
 class Zettelkasten:
     """
@@ -33,7 +33,7 @@ class Zettelkasten:
     vault: Path | str
     index: sqlite3.Connection
     git: Optional[Git] = None
-    note_obj: BaseNote = Note
+    note_obj: Note = Note
     delimiter: str = "---"
     header: str = "# "
     link_del: (str, str) = ('[[', ']]')
@@ -134,6 +134,11 @@ class Zettelkasten:
             confirmation: bool = False) -> None:
         """
         Create a new note and add it to the vault.
+
+        :param title: title of the note.
+        :param author: author of the note.
+        :param to_scratchpad: whether the note should go to the scratchpad.
+        :param confirmation: whether to ask for confirmation to save the note.
         """
         tmp_note = self.note_obj.new(title, author)
         filename = Path(tmp_note.zk_id).with_suffix(".md")
@@ -152,24 +157,16 @@ class Zettelkasten:
                 if response.lower() in ['n', 'no', 'nope']:
                     return None
 
-            f.seek(0)
-            header_parser = HeaderParser(parsing_obj=self.header_obj,
-                                         delimiter=self.delimiter,
-                                         special_names=self.special_values)
-            body_parser = BodyParser(header1=self.header,
-                                     link_del=self.link_del)
-            frontmatter_meta, _ = header_parser.parse(f)
-            body_meta, _ = body_parser.parse(f)
-
-        frontmatter = self.note_obj._generate_frontmatter(frontmatter_meta)
-        links = body_meta['links']
-        body = "\n".join(body_meta['body']).strip()
-        new_note = Note(links=links, frontmatter=frontmatter,
-                        body=body, **frontmatter_meta)
+            # TODO: consider whether opening two handles to same file is good idea
+            new_note = self.note_obj.read(path=f.name,
+                                          parsing_obj=self.header_obj,
+                                          delimiter=self.delimiter,
+                                          special_names=self.special_values,
+                                          header=self.header,
+                                          link_del=self.link_del)
         if to_scratchpad:
             # create scratchpad if it doesn't exist
             note_path = scratchpad / filename
-
         else:
             note_path = self.vault / filename
             self.add(new_note)
@@ -177,7 +174,6 @@ class Zettelkasten:
         with open(note_path, "w") as f:
             f.write(new_note.materialize())
 
-        # TODO: when nothing to commit, don't raise error
         if self.git:
             self.git.save()
 
