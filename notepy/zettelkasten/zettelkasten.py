@@ -10,13 +10,14 @@ import subprocess
 
 
 _CREATE_TABLE_STMT = """CREATE TABLE IF NOT EXISTS zettelkasten(zk_id,
-                   title,
-                   author,
-                   date,
-                   tags,
-                   links,
-                   PRIMARY KEY(zk_id))"""
-_INSERT_STMT = "INSERT INTO zettelkasten VALUES (?, ?, ?, ?, ?, ?)"
+                       title,
+                       author,
+                       creation_date,
+                       tags,
+                       links,
+                       last_changed,
+                       PRIMARY KEY(zk_id))"""
+_INSERT_STMT = "INSERT INTO zettelkasten VALUES (?, ?, ?, ?, ?, ?, ?)"
 _DELETE_STMT = "DELETE FROM zettelkasten WHERE zk_id = ?"
 
 
@@ -122,7 +123,7 @@ class Zettelkasten:
         return bool(is_zettelkasten)
 
     # TODO: make it so payload is note-agnostic
-    def add(self, note: Note) -> None:
+    def _add_to_index(self, note: Note) -> None:
         """
         Add a new note to the vault
 
@@ -134,6 +135,7 @@ class Zettelkasten:
                    note.date,
                    ", ".join(note.tags),
                    ", ".join(note.links),
+                   note.date,
                    )
         try:
             with self.index as conn:
@@ -222,7 +224,7 @@ class Zettelkasten:
         else:
             note_path = self.vault / filename
             # if not in scratchpad, add the metadata to the database
-            self.add(new_note)
+            self._add_to_index(new_note)
 
         # save the new note
         with open(note_path, "w") as f:
