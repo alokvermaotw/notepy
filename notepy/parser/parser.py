@@ -66,8 +66,9 @@ class HeaderParser(BaseParser):
                 context = _IN_CONTEXT
                 continue
             elif clean_line == self.delimiter and context:
-                context = _OUT_CONTEXT
                 break
+            elif not context:
+                continue
 
             name, value = self._line_parser(clean_line, parsing_obj)
             # apply special parsing to defined special names
