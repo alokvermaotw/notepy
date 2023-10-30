@@ -6,7 +6,7 @@ authors = ["Lorenzo Drumond <drumondlorenzo@posteo.net>"]
 readme = "README.md"
 
 [tool.poetry.dependencies]
-python = "^3.11"
+python = "^3.10"
 
 
 [build-system]
