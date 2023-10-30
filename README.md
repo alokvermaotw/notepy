@@ -13,6 +13,7 @@ CLI note manager for Zettelkasten-like note-taking.
 # Roadmap
 
 ## Core
+- [ ] Add `last_changed_time` in sqlite database
 - [ ] Support for tags
 - [ ] Support for backlinks
 - [ ] Search for tags, links, words, title, date
@@ -30,3 +31,6 @@ CLI note manager for Zettelkasten-like note-taking.
 - [ ] AI for tag creation
 - [ ] AI for summarisation of notes
 - [ ] Select multiple notes and summarise them into one
+- [ ] PDF summarizer
+- [ ] flashcards
+- [ ] Daily/Weekly/Monthly knowledge summarization (using git/langchain)
