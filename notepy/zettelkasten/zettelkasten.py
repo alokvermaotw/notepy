@@ -10,23 +10,30 @@ from tempfile import NamedTemporaryFile
 import subprocess
 
 
-_CREATE_TABLE_STMT = """CREATE TABLE IF NOT EXISTS zettelkasten(zk_id,
-                       title,
-                       author,
-                       creation_date,
-                       tags,
-                       links,
-                       last_changed,
-                       PRIMARY KEY(zk_id))"""
+_CREATE_MAIN_TABLE_STMT = """
+    CREATE TABLE IF NOT EXISTS zettelkasten(zk_id,
+    title,
+    author,
+    creation_date,
+    tags,
+    links,
+    last_changed,
+    PRIMARY KEY(zk_id))"""
+_CREATE_TAGS_TABLE = """
+    CREATE TABLE IF NOTE EXISTS tags(tag)
+"""
+_CREATE_LINKS_TABLE = """"""
 _INSERT_STMT = "INSERT INTO zettelkasten VALUES (?, ?, ?, ?, ?, ?, ?)"
 _DELETE_STMT = "DELETE FROM zettelkasten WHERE zk_id = ?"
-_UPDATE_STMT = """UPDATE zettelkasten SET
-                   title = ?,
-                   author = ?,
-                   tags = ?,
-                   links = ?,
-                   last_changed = ?
-                   WHERE zk_id = ?"""
+_UPDATE_STMT = """
+    UPDATE zettelkasten SET
+    title = ?,
+    author = ?,
+    tags = ?,
+    links = ?,
+    last_changed = ?
+    WHERE zk_id = ?"""
+_LIST_STMT = "SELECT zk_id, title from zettelkasten;"
 
 
 # TODO: implement an abstract class for this.
@@ -96,7 +103,7 @@ class Zettelkasten:
         index = path / ".index.db"
         conn = sqlite3.connect(index)
         with conn:
-            conn.execute(_CREATE_TABLE_STMT)
+            conn.execute(_CREATE_MAIN_TABLE_STMT)
         zk_args['index'] = conn
 
         # create scratchpad
@@ -131,6 +138,11 @@ class Zettelkasten:
         return bool(is_zettelkasten)
 
     def _update_note_to_index(self, note: Note) -> None:
+        """
+        Add to the index the updated metadata of the note.
+
+        :param note: the updated note.
+        """
         current_date = datetime.now()
         payload = (note.title,
                    note.author,
@@ -181,7 +193,9 @@ class Zettelkasten:
                              note: Note,
                              confirmation: bool = False) -> Note:
         """
-        Edit a note in a temporary file.
+        Edit a note in a temporary file. The temporary file is created
+        in the scratchpad so not to interfere with git. The temporary
+        file is automatically deleted.
 
         :param note: the note to edit.
         :param confirmation: whether to ask for confirmation.
@@ -262,6 +276,12 @@ class Zettelkasten:
             self.git.save(msg=f'Commit "{new_note.zk_id}"')
 
     def update(self, zk_id: str, confirmation: bool = False) -> None:
+        """
+        Update the note corresponding to the provded ID.
+
+        :param zk_id: the ID of the note.
+        :param confirmation: whether to ask for confirmation to save the note.
+        """
         # read the note
         filename = Path(zk_id).with_suffix(".md")
         note_path = self.vault / filename
@@ -293,6 +313,40 @@ class Zettelkasten:
         # add and commit
         if self.git:
             self.git.save(msg=f'Updated "{new_note.zk_id}"')
+
+    def delete(self, zk_id: str, confirmation: bool = False) -> None:
+        """
+        Delete a note.
+
+        :param zk_id: the ID of the note to delete.
+        :param confirmation: whether to ask for confirmation to save the note.
+        """
+
+        filename = Path(zk_id).with_suffix(".md")
+        note_path = self.vault / filename
+
+        # ask for confirmation
+        if confirmation:
+            response = input("Delete note? [Y/n]: ")
+            if response.lower() in ['n', 'no', 'nope']:
+                return None
+
+        # remove from index
+        with self.index as conn:
+            conn.execute(_DELETE_STMT, (zk_id,))
+
+        # remove note
+        note_path.unlink(missing_ok=True)
+
+    def list(self) -> Sequence[str]:
+        """
+        List zk_id, title of the notes in the database.
+        """
+        cur = self.index.cursor()
+        results = cur.execute(_LIST_STMT).fetchall()
+        cur.close()
+
+        return results
 
 
 class ZettelkastenException(Exception):
