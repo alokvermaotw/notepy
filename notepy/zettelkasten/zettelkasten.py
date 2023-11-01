@@ -1,4 +1,5 @@
 from __future__ import annotations
+from datetime import datetime
 from dataclasses import dataclass, fields
 from pathlib import Path
 from typing import Optional, Sequence
@@ -19,6 +20,13 @@ _CREATE_TABLE_STMT = """CREATE TABLE IF NOT EXISTS zettelkasten(zk_id,
                        PRIMARY KEY(zk_id))"""
 _INSERT_STMT = "INSERT INTO zettelkasten VALUES (?, ?, ?, ?, ?, ?, ?)"
 _DELETE_STMT = "DELETE FROM zettelkasten WHERE zk_id = ?"
+_UPDATE_STMT = """UPDATE zettelkasten SET
+                   title = ?,
+                   author = ?,
+                   tags = ?,
+                   links = ?,
+                   last_changed = ?
+                   WHERE zk_id = ?"""
 
 
 # TODO: implement an abstract class for this.
@@ -121,6 +129,22 @@ class Zettelkasten:
         is_zettelkasten *= (path / ".last").is_file()
 
         return bool(is_zettelkasten)
+
+    def _update_note_to_index(self, note: Note) -> None:
+        current_date = datetime.now()
+        payload = (note.title,
+                   note.author,
+                   ", ".join(note.tags),
+                   ", ".join(note.links),
+                   current_date,
+                   note.zk_id)
+
+        try:
+            with self.index as conn:
+                conn.execute(_UPDATE_STMT, payload)
+        # TODO: investigate sqlite3 exceptions
+        except sqlite3.IntegrityError as e:
+            raise ZettelkastenException("SQL error") from e
 
     # TODO: make it so payload is note-agnostic
     def _add_to_index(self, note: Note) -> None:
@@ -235,7 +259,40 @@ class Zettelkasten:
 
         # add and commit
         if self.git:
-            self.git.save(msg=f'Commit "{new_note.title}"')
+            self.git.save(msg=f'Commit "{new_note.zk_id}"')
+
+    def update(self, zk_id: str, confirmation: bool = False) -> None:
+        # read the note
+        filename = Path(zk_id).with_suffix(".md")
+        note_path = self.vault / filename
+        note = Note.read(path=note_path,
+                         parsing_obj=self.header_obj,
+                         delimiter=self.delimiter,
+                         special_names=self.special_values,
+                         header=self.header,
+                         link_del=self.link_del)
+
+        new_note = self._edit_temporary_note(note, confirmation=confirmation)
+        if new_note is None:
+            return None
+
+        # if id was changed, raise an error.
+        if new_note.zk_id != zk_id:
+            raise ZettelkastenException("""You cannot change the ID of an existing note.""")
+
+        # save the new note
+        with open(note_path, "w") as f:
+            f.write(new_note.materialize())
+
+        # update the index
+        self._update_note_to_index(new_note)
+
+        # update .last file
+        self._add_last_opened(filename)
+
+        # add and commit
+        if self.git:
+            self.git.save(msg=f'Updated "{new_note.zk_id}"')
 
 
 class ZettelkastenException(Exception):
