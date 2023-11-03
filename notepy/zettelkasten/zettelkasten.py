@@ -300,6 +300,30 @@ class Zettelkasten:
 
         return zk_id in all_ids
 
+    def print_note(self, zk_id: str) -> str:
+        """
+        Print the content of the note with the corresponding ID.
+
+        :param zk_id: ID of the note.
+        :return: content of the note.
+        """
+        # check that the note exists
+        if not self._note_exists(zk_id):
+            raise ZettelkastenException(f"Note '{zk_id}' does not exist.")
+
+        filename = Path(zk_id).with_suffix(".md")
+        note_path = self.vault / filename
+        note = Note.read(path=note_path,
+                         parsing_obj=self.header_obj,
+                         delimiter=self.delimiter,
+                         special_names=self.special_values,
+                         header=self.header,
+                         link_del=self.link_del)
+
+        content = note.materialize()
+
+        return content
+
 
 class ZettelkastenException(Exception):
     """Main exception raised by Zettelkasten"""
