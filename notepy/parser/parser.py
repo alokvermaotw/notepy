@@ -1,7 +1,8 @@
 """
 Parsers for various elements of a note
 """
-from typing import Sequence, Any
+from typing import Any, TypeVar, Optional, TypeAlias
+from collections.abc import Collection, Sequence
 from abc import ABC, abstractmethod
 from pathlib import Path
 from io import TextIOWrapper
@@ -9,6 +10,8 @@ from datetime import datetime
 from string import punctuation
 import re
 
+Target = TypeVar("Target", str, Path)
+Parsed: TypeAlias = tuple[dict[str, Sequence[str]], TextIOWrapper]
 
 _IN_CONTEXT = True
 _OUT_CONTEXT = False
@@ -16,9 +19,35 @@ _DATE_FORMAT = "%Y-%m-%dT%H:%M:%S"
 _INVALID_CHARS = punctuation.replace("_", "").replace("#", "")
 
 
+def _open_or_return_handle(*,
+                           path: Optional[Target],
+                           handle: Optional[TextIOWrapper]) -> TextIOWrapper:
+    """
+    If path is provided, return a handle for the file at path.
+    If handle is provided, just return the handle.
+    You must provide at least one argument.
+    Only one of the two is used, and path has priority over handle.
+
+    This is a utility function for the parse method.
+
+    :param path: path to the file.
+    :param handle: handle of the file.
+    """
+    if path:
+        file_obj = open(Path(path).expanduser(), "r")
+    elif handle:
+        file_obj = handle
+    else:
+        raise TypeError("missing 1 required keyword argument between 'path' or 'handle'")
+
+    return file_obj
+
+
 class BaseParser(ABC):
     @abstractmethod
-    def parse(self, target: str | Path | TextIOWrapper) -> (dict[str], TextIOWrapper):
+    def parse(self,
+              path: Optional[Target] = None,
+              handle: Optional[TextIOWrapper] = None) -> Parsed:
         ...
 
 
@@ -35,14 +64,16 @@ class HeaderParser(BaseParser):
                           NAME is a member of special_names
     """
 
-    def __init__(self, parsing_obj: Sequence[str],
+    def __init__(self, parsing_obj: Collection[str],
                  delimiter: str = '---',
-                 special_names: Sequence[str] = ['date', 'tags']):
+                 special_names: Collection[str] = ['date', 'tags']):
         self.parsing_obj = parsing_obj
         self.delimiter = delimiter
         self.special_names = special_names
 
-    def parse(self, target: str | Path | TextIOWrapper) -> (dict[str], TextIOWrapper):
+    def parse(self,
+              path: Optional[Target] = None,
+              handle: Optional[TextIOWrapper] = None) -> Parsed:
         """
         Main parsing function. It will open a file stream,
         parse the content, and return the parsed frontmatter
@@ -52,8 +83,7 @@ class HeaderParser(BaseParser):
         :return: parsed items in form of a dictionary,
                  and the rest of the file stream
         """
-        file_obj = open(Path(target).expanduser(), "r") if isinstance(
-            target, (Path, str)) else target
+        file_obj = _open_or_return_handle(path=path, handle=handle)
         context = _OUT_CONTEXT
         parsing_obj = set(self.parsing_obj)
         parsed_obj = {}
@@ -73,7 +103,7 @@ class HeaderParser(BaseParser):
             name, value = self._line_parser(clean_line, parsing_obj)
             # apply special parsing to defined special names
             if name in self.special_names:
-                parser = getattr(self, f'_{name}_parser', HeaderParser._id)
+                parser = getattr(self, f'_{name}_parser', self._id)
                 value = parser(value)
 
             parsed_obj[name] = value
@@ -83,7 +113,7 @@ class HeaderParser(BaseParser):
 
         return parsed_obj, file_obj
 
-    def _line_parser(self, line: str, parsing_obj: set[str]) -> (str, Any):
+    def _line_parser(self, line: str, parsing_obj: set[str]) -> tuple[str, Any]:
         """
         Parse a line into key/value pairs.
 
@@ -178,17 +208,18 @@ class BodyParser(BaseParser):
 
     def __init__(self,
                  header1: str = "# ",
-                 link_del: (str, str) = ("[[", "]]")
+                 link_del: tuple[str, str] = ("[[", "]]")
                  ):
         self.header1 = header1
         self.link_del = link_del
 
-    def parse(self, target: str | Path | TextIOWrapper) -> (dict[Sequence[str]], TextIOWrapper):
-        file_obj = open(Path(target).expanduser(), "r") if isinstance(
-            target, (Path, str)) else target
-        headers = []
-        links = []
-        body = []
+    def parse(self,
+              path: Optional[Target] = None,
+              handle: Optional[TextIOWrapper] = None) -> Parsed:
+        file_obj = _open_or_return_handle(path=path, handle=handle)
+        headers: list[str] = []
+        links: list[str] = []
+        body: list[str] = []
         context = _OUT_CONTEXT
 
         for line in file_obj:
@@ -210,9 +241,9 @@ class BodyParser(BaseParser):
             line_links = self._link_parser(clean_line)
             links.extend(line_links)
 
-        return {'header': headers, 'links': set(links), 'body': body}, file_obj
+        return {'header': headers, 'links': links, 'body': body}, file_obj
 
-    def _link_parser(self, line: str) -> set[str]:
+    def _link_parser(self, line: str) -> Collection[str]:
         """
         Parse a line for links.
 
@@ -228,9 +259,9 @@ class BodyParser(BaseParser):
         line_links = [link.removeprefix(start_link).removesuffix(end_link)
                       for link in pattern.findall(line)]
         # remove empty link
-        line_links = [link for link in line_links if link != ""]
+        line_links_set = set(link for link in line_links if link != "")
 
-        return line_links
+        return line_links_set
 
 
 class FrontmatterException(Exception):
