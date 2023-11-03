@@ -136,6 +136,10 @@ class Note(BaseNote):
             frontmatter_meta, _ = header_parser.parse(f)
             body_meta, _ = body_parser.parse(f)
 
+        # raise exception if first header is different from title
+        if body_meta['header'][0].removeprefix("#").strip() != frontmatter_meta['title']:
+            raise NoteException("First header and title must be the same.")
+
         frontmatter = cls._generate_frontmatter(frontmatter_meta)
         links = body_meta['links']
         body = "\n".join(body_meta['body']).strip()
@@ -220,3 +224,7 @@ class Note(BaseNote):
         zk_id = "-".join([date_formatted, clean_title])
 
         return zk_id
+
+
+class NoteException(Exception):
+    """Exception raised when there is an issue with a note."""

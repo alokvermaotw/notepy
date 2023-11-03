@@ -6,34 +6,9 @@ from typing import Optional, Sequence
 import sqlite3
 from notepy.zettelkasten import Note
 from notepy.cli import Git
+from notepy.zettelkasten import sql
 from tempfile import NamedTemporaryFile
 import subprocess
-
-
-_CREATE_MAIN_TABLE_STMT = """
-    CREATE TABLE IF NOT EXISTS zettelkasten(zk_id,
-    title,
-    author,
-    creation_date,
-    tags,
-    links,
-    last_changed,
-    PRIMARY KEY(zk_id))"""
-_CREATE_TAGS_TABLE = """
-    CREATE TABLE IF NOTE EXISTS tags(tag)
-"""
-_CREATE_LINKS_TABLE = """"""
-_INSERT_STMT = "INSERT INTO zettelkasten VALUES (?, ?, ?, ?, ?, ?, ?)"
-_DELETE_STMT = "DELETE FROM zettelkasten WHERE zk_id = ?"
-_UPDATE_STMT = """
-    UPDATE zettelkasten SET
-    title = ?,
-    author = ?,
-    tags = ?,
-    links = ?,
-    last_changed = ?
-    WHERE zk_id = ?"""
-_LIST_STMT = "SELECT zk_id, title from zettelkasten;"
 
 
 # TODO: implement an abstract class for this.
@@ -103,7 +78,9 @@ class Zettelkasten:
         index = path / ".index.db"
         conn = sqlite3.connect(index)
         with conn:
-            conn.execute(_CREATE_MAIN_TABLE_STMT)
+            conn.execute(sql.CREATE_MAIN_TABLE_STMT)
+            conn.execute(sql.CREATE_TAGS_TABLE_STMT)
+            conn.execute(sql.CREATE_LINKS_TABLE_STMT)
         zk_args['index'] = conn
 
         # create scratchpad
@@ -144,16 +121,21 @@ class Zettelkasten:
         :param note: the updated note.
         """
         current_date = datetime.now()
-        payload = (note.title,
-                   note.author,
-                   ", ".join(note.tags),
-                   ", ".join(note.links),
-                   current_date,
-                   note.zk_id)
+        main_payload = (note.title,
+                        note.author,
+                        current_date,
+                        note.zk_id)
+        tags_payload = [(tag, note.zk_id) for tag in note.tags]
+        links_payload = [(link, note.zk_id) for link in note.links]
 
         try:
             with self.index as conn:
-                conn.execute(_UPDATE_STMT, payload)
+                conn.execute(sql.UPDATE_MAIN_STMT, main_payload)
+                # update tags and links
+                conn.execute(sql.DELETE_TAGS_STMT, (note.zk_id,))
+                conn.execute(sql.DELETE_LINKS_STMT, (note.zk_id,))
+                conn.executemany(sql.INSERT_TAGS_STMT, tags_payload)
+                conn.executemany(sql.INSERT_LINKS_STMT, links_payload)
         # TODO: investigate sqlite3 exceptions
         except sqlite3.IntegrityError as e:
             raise ZettelkastenException("SQL error") from e
@@ -165,17 +147,19 @@ class Zettelkasten:
 
         :param note: note to process.
         """
-        payload = (note.zk_id,
-                   note.title,
-                   note.author,
-                   note.date,
-                   ", ".join(note.tags),
-                   ", ".join(note.links),
-                   note.date,
-                   )
+        main_payload = (note.zk_id,
+                        note.title,
+                        note.author,
+                        note.date,
+                        note.date)
+        tags_payload = [(tag, note.zk_id) for tag in note.tags]
+        links_payload = [(link, note.zk_id) for link in note.links]
+
         try:
             with self.index as conn:
-                conn.execute(_INSERT_STMT, payload)
+                conn.execute(sql.INSERT_MAIN_STMT, main_payload)
+                conn.executemany(sql.INSERT_TAGS_STMT, tags_payload)
+                conn.executemany(sql.INSERT_LINKS_STMT, links_payload)
         except sqlite3.IntegrityError as e:
             raise ZettelkastenException("SQL error") from e
 
@@ -232,7 +216,6 @@ class Zettelkasten:
 
         return new_note
 
-    # TODO: should we ask for confirmation here or in a higher level module?
     def new(self,
             title: str,
             author: str,
@@ -282,6 +265,11 @@ class Zettelkasten:
         :param zk_id: the ID of the note.
         :param confirmation: whether to ask for confirmation to save the note.
         """
+
+        # check that the note exists
+        if not self._note_exists(zk_id):
+            raise ZettelkastenException(f"Note '{zk_id}' does not exist.")
+
         # read the note
         filename = Path(zk_id).with_suffix(".md")
         note_path = self.vault / filename
@@ -322,6 +310,10 @@ class Zettelkasten:
         :param confirmation: whether to ask for confirmation to save the note.
         """
 
+        # check that the note exists
+        if not self._note_exists(zk_id):
+            raise ZettelkastenException(f"Note '{zk_id}' does not exist.")
+
         filename = Path(zk_id).with_suffix(".md")
         note_path = self.vault / filename
 
@@ -333,20 +325,30 @@ class Zettelkasten:
 
         # remove from index
         with self.index as conn:
-            conn.execute(_DELETE_STMT, (zk_id,))
+            conn.execute(sql.DELETE_MAIN_STMT, (zk_id,))
 
         # remove note
         note_path.unlink(missing_ok=True)
+
+        # add and commit
+        if self.git:
+            self.git.save(msg=f'Removed note "{zk_id}"')
 
     def list(self) -> Sequence[str]:
         """
         List zk_id, title of the notes in the database.
         """
         cur = self.index.cursor()
-        results = cur.execute(_LIST_STMT).fetchall()
+        results = cur.execute(sql.LIST_STMT).fetchall()
         cur.close()
 
         return results
+
+    # NOTE: maybe it could just be quicker to catch FileNotFoundError?
+    def _note_exists(self, zk_id: str) -> bool:
+        all_ids = [id for id, title in self.list()]
+
+        return zk_id in all_ids
 
 
 class ZettelkastenException(Exception):
