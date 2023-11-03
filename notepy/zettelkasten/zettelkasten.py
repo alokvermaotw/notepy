@@ -2,10 +2,11 @@ from __future__ import annotations
 from datetime import datetime
 from dataclasses import dataclass, fields
 from pathlib import Path
-from typing import Optional, Sequence
+from typing import Optional, Any
+from collections.abc import Sequence, MutableMapping
 import sqlite3
-from notepy.zettelkasten import Note
-from notepy.cli import Git
+from notepy.zettelkasten.notes import Note
+from notepy.cli.git_wrapper import Git
 from notepy.zettelkasten import sql
 from tempfile import NamedTemporaryFile
 import subprocess
@@ -21,14 +22,14 @@ class Zettelkasten:
     :param index: the connection to the database.
     :param git: whether the vault is a git repo.
     """
-    vault: Path | str
+    vault: Path
     index: sqlite3.Connection
     git: Optional[Git] = None
-    note_obj: Note = Note
+    note_obj: type[Note] = Note
     delimiter: str = "---"
     header: str = "# "
-    link_del: (str, str) = ('[[', ']]')
-    special_values: tuple[str] = ('date', 'tags')
+    link_del: tuple[str, str] = ('[[', ']]')
+    special_values: tuple[str, str] = ('date', 'tags')
 
     def __post_init__(self) -> None:
         self.vault = Path(self.vault).expanduser()
@@ -45,6 +46,11 @@ class Zettelkasten:
     def initialize(cls,
                    path: str | Path,
                    git_init: bool = False,
+                   note_obj: type[Note] = Note,
+                   delimiter: str = "---",
+                   header: str = "# ",
+                   link_del: tuple[str, str] = ('[[', ']]'),
+                   special_values: tuple[str, str] = ('date', 'tags'),
                    force: bool = False) -> Zettelkasten:
         """
         Initialize a new vault. A vault is made of a collection of
@@ -64,7 +70,7 @@ class Zettelkasten:
             raise ZettelkastenException(f"'{path}' has already been initialized!"
                                         "use 'force=True' to force re-initialization")
 
-        zk_args = {}
+        zk_args: MutableMapping[str, Any] = {}
 
         # create vault
         path.mkdir(exist_ok=True)
@@ -77,11 +83,11 @@ class Zettelkasten:
         # create connection and main table
         index = path / ".index.db"
         conn = sqlite3.connect(index)
+        zk_args['index'] = conn
         with conn:
             conn.execute(sql.CREATE_MAIN_TABLE_STMT)
             conn.execute(sql.CREATE_TAGS_TABLE_STMT)
             conn.execute(sql.CREATE_LINKS_TABLE_STMT)
-        zk_args['index'] = conn
 
         # create scratchpad
         scratchpad = path / 'scratchpad'
@@ -106,7 +112,7 @@ class Zettelkasten:
         :return: True or False
         """
         path = Path(path).expanduser()
-        is_zettelkasten = True
+        is_zettelkasten = int(True)
         is_zettelkasten *= path.is_dir()
         is_zettelkasten *= (path / ".index.db").is_file()
         is_zettelkasten *= (path / "scratchpad").is_dir()
@@ -175,7 +181,7 @@ class Zettelkasten:
     # TODO: use a higher level editor_wrapper instead of hx
     def _edit_temporary_note(self,
                              note: Note,
-                             confirmation: bool = False) -> Note:
+                             confirmation: bool = False) -> Note | None:
         """
         Edit a note in a temporary file. The temporary file is created
         in the scratchpad so not to interfere with git. The temporary
@@ -212,7 +218,7 @@ class Zettelkasten:
         if confirmation:
             response = input("Save note? [Y/n]: ")
             if response.lower() in ['n', 'no', 'nope']:
-                new_note = None
+                return None
 
         return new_note
 
@@ -334,7 +340,7 @@ class Zettelkasten:
         if self.git:
             self.git.save(msg=f'Removed note "{zk_id}"')
 
-    def list(self) -> Sequence[str]:
+    def list(self) -> Sequence[tuple[str, str]]:
         """
         List zk_id, title of the notes in the database.
         """

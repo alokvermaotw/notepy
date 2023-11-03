@@ -5,13 +5,15 @@ Define two classes to model zettelkasten:
 """
 
 from __future__ import annotations
+from copy import copy
 from abc import ABC, abstractmethod
 from datetime import datetime
 from dataclasses import dataclass
 from string import punctuation
 from pathlib import Path
-from typing import Sequence
-from notepy.parser import HeaderParser, BodyParser
+from collections.abc import Collection, MutableMapping
+from typing import Any
+from notepy.parser.parser import HeaderParser, BodyParser
 
 
 class BaseNote(ABC):
@@ -47,11 +49,11 @@ class BaseNote(ABC):
     @abstractmethod
     def read(cls,
              path: str | Path,
-             parsing_obj: Sequence[str],
+             parsing_obj: Collection[str],
              delimiter: str = "---",
-             special_names: Sequence[str] = ("date", "tags"),
+             special_names: Collection[str] = ("date", "tags"),
              header: str = "# ",
-             link_del: Sequence[str] = ('[[', ']]')) -> Note:
+             link_del: tuple[str, str] = ('[[', ']]')) -> Note:
         """
         Read a note from a file.
 
@@ -84,8 +86,8 @@ class Note(BaseNote):
     author: str
     date: datetime
     zk_id: str
-    tags: Sequence[str]
-    links: Sequence[str]
+    tags: Collection[str]
+    links: Collection[str]
     frontmatter: str
     body: str
 
@@ -111,11 +113,11 @@ class Note(BaseNote):
     @classmethod
     def read(cls,
              path: str | Path,
-             parsing_obj: Sequence[str],
+             parsing_obj: Collection[str],
              delimiter: str = "---",
-             special_names: Sequence[str] = ("date", "tags"),
+             special_names: Collection[str] = ("date", "tags"),
              header: str = "# ",
-             link_del: Sequence[str] = ('[[', ']]')) -> Note:
+             link_del: tuple[str, str] = ('[[', ']]')) -> Note:
         """
         Read a note from a file.
 
@@ -133,8 +135,8 @@ class Note(BaseNote):
         body_parser = BodyParser(header1=header,
                                  link_del=link_del)
         with open(path) as f:
-            frontmatter_meta, _ = header_parser.parse(f)
-            body_meta, _ = body_parser.parse(f)
+            frontmatter_meta, _ = header_parser.parse(handle=f)
+            body_meta, _ = body_parser.parse(handle=f)
 
         # raise exception if first header is different from title
         if body_meta['header'][0].removeprefix(header).strip() != frontmatter_meta['title']:
@@ -161,7 +163,7 @@ class Note(BaseNote):
         return note
 
     @staticmethod
-    def _generate_frontmatter(metadata: dict[str, str]) -> str:
+    def _generate_frontmatter(metadata: MutableMapping[str, Any]) -> str:
         """
         Generates the frontmatter string of the
         zettelkasten note
@@ -170,7 +172,7 @@ class Note(BaseNote):
         :return: the frontmatter string
         """
 
-        frontmatter_metadata = metadata.copy()
+        frontmatter_metadata = copy(metadata)
         frontmatter_metadata['tags'] = ", ".join(frontmatter_metadata['tags'])
         frontmatter_metadata['date'] = (frontmatter_metadata['date']
                                         .strftime("%Y-%m-%dT%H:%M:%S"))
@@ -182,7 +184,7 @@ class Note(BaseNote):
         return yml_header
 
     @staticmethod
-    def _generate_metadata(title: str, author: str) -> dict[str, str]:
+    def _generate_metadata(title: str, author: str) -> dict[str, Any]:
         """
         Generates the metadata dictionary for
         a nrew zettelkasten note.

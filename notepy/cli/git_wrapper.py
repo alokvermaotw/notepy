@@ -4,7 +4,7 @@ Small git wrapper to init, check status, add, commit and pull
 
 from __future__ import annotations
 import subprocess
-from typing import Optional
+from typing import Optional, Any
 from pathlib import Path
 from notepy.cli.base_cli import BaseCli, CliException, run_and_handle
 
@@ -158,7 +158,7 @@ class Git(BaseCli):
         return origin_exists
 
     @property
-    def status(self):
+    def status(self) -> str:
         """
         Check status of current git repo.
         """
@@ -170,11 +170,11 @@ class Git(BaseCli):
         return status
 
     @status.setter
-    def status(self, value):
+    def status(self, value: Any) -> None:
         raise GitException("You cannot do this operation.")
 
     @status.deleter
-    def status(self):
+    def status(self) -> None:
         raise GitException("You cannot do this operation.")
 
     @property
@@ -200,7 +200,7 @@ class Git(BaseCli):
         return origin
 
     @origin.setter
-    def origin(self, value) -> None:
+    def origin(self, value: str) -> None:
         """
         Update origin
 

@@ -5,9 +5,9 @@ from pathlib import Path
 
 
 def run_and_handle(command: str,
-                   exception: Exception,
+                   exception: type[Exception],
                    cwd: Path | str = ".",
-                   comment: str = "") -> subprocess.CompletedProcess:
+                   comment: str = "") -> subprocess.CompletedProcess[bytes]:
     """
     Utility function for easy CalledProcessError handling. It calls a command
     and manages exceptions by calling GitException, together with the stderr
@@ -47,7 +47,7 @@ class BaseCli(ABC):
         self.cmd = cmd
         self._cmd_exists()
 
-    def _cmd_exists(self):
+    def _cmd_exists(self) -> None:
         """
         Check that the command is present on the system.
         """

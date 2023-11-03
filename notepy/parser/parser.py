@@ -2,7 +2,7 @@
 Parsers for various elements of a note
 """
 from typing import Any, TypeVar, Optional, TypeAlias
-from collections.abc import Collection, Sequence
+from collections.abc import Collection, Sequence, MutableMapping
 from abc import ABC, abstractmethod
 from pathlib import Path
 from io import TextIOWrapper
@@ -11,7 +11,8 @@ from string import punctuation
 import re
 
 Target = TypeVar("Target", str, Path)
-Parsed: TypeAlias = tuple[dict[str, Sequence[str]], TextIOWrapper]
+Parsed: TypeAlias = MutableMapping[str, Any]
+Output: TypeAlias = tuple[Parsed, TextIOWrapper]
 
 _IN_CONTEXT = True
 _OUT_CONTEXT = False
@@ -20,8 +21,8 @@ _INVALID_CHARS = punctuation.replace("_", "").replace("#", "")
 
 
 def _open_or_return_handle(*,
-                           path: Optional[Target],
-                           handle: Optional[TextIOWrapper]) -> TextIOWrapper:
+                           path: Optional[Target] = None,
+                           handle: Optional[TextIOWrapper] = None) -> TextIOWrapper:
     """
     If path is provided, return a handle for the file at path.
     If handle is provided, just return the handle.
@@ -47,7 +48,7 @@ class BaseParser(ABC):
     @abstractmethod
     def parse(self,
               path: Optional[Target] = None,
-              handle: Optional[TextIOWrapper] = None) -> Parsed:
+              handle: Optional[TextIOWrapper] = None) -> Output:
         ...
 
 
@@ -73,7 +74,7 @@ class HeaderParser(BaseParser):
 
     def parse(self,
               path: Optional[Target] = None,
-              handle: Optional[TextIOWrapper] = None) -> Parsed:
+              handle: Optional[TextIOWrapper] = None) -> Output:
         """
         Main parsing function. It will open a file stream,
         parse the content, and return the parsed frontmatter
@@ -86,7 +87,7 @@ class HeaderParser(BaseParser):
         file_obj = _open_or_return_handle(path=path, handle=handle)
         context = _OUT_CONTEXT
         parsing_obj = set(self.parsing_obj)
-        parsed_obj = {}
+        parsed_obj: MutableMapping[str, Sequence[str]] = {}
 
         for line in file_obj:
             clean_line = line.strip()
@@ -113,7 +114,7 @@ class HeaderParser(BaseParser):
 
         return parsed_obj, file_obj
 
-    def _line_parser(self, line: str, parsing_obj: set[str]) -> tuple[str, Any]:
+    def _line_parser(self, line: str, parsing_obj: set[str]) -> tuple[str, str]:
         """
         Parse a line into key/value pairs.
 
@@ -215,7 +216,7 @@ class BodyParser(BaseParser):
 
     def parse(self,
               path: Optional[Target] = None,
-              handle: Optional[TextIOWrapper] = None) -> Parsed:
+              handle: Optional[TextIOWrapper] = None) -> Output:
         file_obj = _open_or_return_handle(path=path, handle=handle)
         headers: list[str] = []
         links: list[str] = []
