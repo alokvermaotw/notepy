@@ -37,7 +37,9 @@ class Git(BaseCli):
                                "Use `Git.init('path')` to initialize.")
 
     @classmethod
-    def init(cls, path: Path | str, to_ignore: Optional[list[str]] = []) -> Git:
+    def init(cls,
+             path: Path | str,
+             to_ignore: list[str] = []) -> Git:
         """
         Initialize a new git repo in the directory provided.
 
