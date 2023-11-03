@@ -1,7 +1,5 @@
 """
-Define two classes to model zettelkasten:
-    - Note: represents a single note
-    - ZettelKasten: represents the whole repository
+Define the main class that models a zettelkasten note.
 """
 
 from __future__ import annotations
@@ -14,6 +12,7 @@ from pathlib import Path
 from collections.abc import Collection, MutableMapping
 from typing import Any
 from notepy.parser.parser import HeaderParser, BodyParser
+from hashlib import md5
 
 
 class BaseNote(ABC):
@@ -75,8 +74,7 @@ class Note(BaseNote):
     :param title: title of the note
     :param author: author of the note
     :param date: date of the note
-    :param zk_id: unique id of the note, in the form %Y%m%d%H%M%S-title, where
-                  title is in kebab-case
+    :param zk_id: unique id of the note, in the form %Y%m%d%H%M%S
     :param tags: tags of the note
     :param links: links the note points to
     :param frontmatter: the whole frontmatter of the note
@@ -162,6 +160,17 @@ class Note(BaseNote):
 
         return note
 
+    def sluggify(self) -> str:
+        """
+        Sluggify the title of the note.
+        """
+        clean_title = "".join(list(map(lambda x: x
+                                       if x not in punctuation
+                                       else "", self.title)))
+        slug = clean_title.lower().replace(" ", "-")
+
+        return slug
+
     @staticmethod
     def _generate_frontmatter(metadata: MutableMapping[str, Any]) -> str:
         """
@@ -212,20 +221,13 @@ class Note(BaseNote):
         """
         Generate the id for a singe note.
 
-        :param title: the title of the note
-        :param author: the author of the note
         :param date: the date the note was taken
-        :return: the note ID in kebab-case
+        :return: the note ID
         """
 
         date_formatted = date.strftime("%Y%m%d%H%M%S")
-        clean_title = "".join(list(map(lambda x: x
-                                       if x not in punctuation
-                                       else "", title)))
-        clean_title = clean_title.lower().replace(" ", "-")
-        zk_id = "-".join([date_formatted, clean_title])
 
-        return zk_id
+        return date_formatted
 
 
 class NoteException(Exception):
