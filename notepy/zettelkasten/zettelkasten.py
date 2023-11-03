@@ -1,5 +1,4 @@
 from __future__ import annotations
-from datetime import datetime
 from dataclasses import dataclass, fields
 from pathlib import Path
 from typing import Optional, Any
@@ -7,7 +6,7 @@ from collections.abc import Sequence, MutableMapping
 import sqlite3
 from notepy.zettelkasten.notes import Note
 from notepy.cli.git_wrapper import Git
-from notepy.zettelkasten import sql
+from notepy.zettelkasten.sql import DBManager
 from tempfile import NamedTemporaryFile
 import subprocess
 
@@ -34,6 +33,7 @@ class Zettelkasten:
     def __post_init__(self) -> None:
         self.vault = Path(self.vault).expanduser()
         self.last = self.vault / ".last"
+        self.dbmanager = DBManager(self.index)
         self.header_obj = [note_field.name
                            for note_field in fields(self.note_obj)
                            if note_field.name not in ['links', 'frontmatter', 'body']]
@@ -84,10 +84,9 @@ class Zettelkasten:
         index = path / ".index.db"
         conn = sqlite3.connect(index)
         zk_args['index'] = conn
-        with conn:
-            conn.execute(sql.CREATE_MAIN_TABLE_STMT)
-            conn.execute(sql.CREATE_TAGS_TABLE_STMT)
-            conn.execute(sql.CREATE_LINKS_TABLE_STMT)
+
+        # create the tables
+        DBManager(conn).create_tables()
 
         # create scratchpad
         scratchpad = path / 'scratchpad'
@@ -119,55 +118,6 @@ class Zettelkasten:
         is_zettelkasten *= (path / ".last").is_file()
 
         return bool(is_zettelkasten)
-
-    def _update_note_to_index(self, note: Note) -> None:
-        """
-        Add to the index the updated metadata of the note.
-
-        :param note: the updated note.
-        """
-        current_date = datetime.now()
-        main_payload = (note.title,
-                        note.author,
-                        current_date,
-                        note.zk_id)
-        tags_payload = [(tag, note.zk_id) for tag in note.tags]
-        links_payload = [(link, note.zk_id) for link in note.links]
-
-        try:
-            with self.index as conn:
-                conn.execute(sql.UPDATE_MAIN_STMT, main_payload)
-                # update tags and links
-                conn.execute(sql.DELETE_TAGS_STMT, (note.zk_id,))
-                conn.execute(sql.DELETE_LINKS_STMT, (note.zk_id,))
-                conn.executemany(sql.INSERT_TAGS_STMT, tags_payload)
-                conn.executemany(sql.INSERT_LINKS_STMT, links_payload)
-        # TODO: investigate sqlite3 exceptions
-        except sqlite3.IntegrityError as e:
-            raise ZettelkastenException("SQL error") from e
-
-    # TODO: make it so payload is note-agnostic
-    def _add_to_index(self, note: Note) -> None:
-        """
-        Add a new note to the vault
-
-        :param note: note to process.
-        """
-        main_payload = (note.zk_id,
-                        note.title,
-                        note.author,
-                        note.date,
-                        note.date)
-        tags_payload = [(tag, note.zk_id) for tag in note.tags]
-        links_payload = [(link, note.zk_id) for link in note.links]
-
-        try:
-            with self.index as conn:
-                conn.execute(sql.INSERT_MAIN_STMT, main_payload)
-                conn.executemany(sql.INSERT_TAGS_STMT, tags_payload)
-                conn.executemany(sql.INSERT_LINKS_STMT, links_payload)
-        except sqlite3.IntegrityError as e:
-            raise ZettelkastenException("SQL error") from e
 
     def _add_last_opened(self, name: str | Path) -> None:
         """
@@ -251,7 +201,7 @@ class Zettelkasten:
         else:
             note_path = self.vault / filename
             # if not in scratchpad, add the metadata to the database
-            self._add_to_index(new_note)
+            self.dbmanager.add_to_index(new_note)
 
         # save the new note
         with open(note_path, "w") as f:
@@ -299,7 +249,7 @@ class Zettelkasten:
             f.write(new_note.materialize())
 
         # update the index
-        self._update_note_to_index(new_note)
+        self.dbmanager.update_note_to_index(new_note)
 
         # update .last file
         self._add_last_opened(filename)
@@ -330,8 +280,7 @@ class Zettelkasten:
                 return None
 
         # remove from index
-        with self.index as conn:
-            conn.execute(sql.DELETE_MAIN_STMT, (zk_id,))
+        self.dbmanager.delete_from_index(zk_id)
 
         # remove note
         note_path.unlink(missing_ok=True)
@@ -341,12 +290,7 @@ class Zettelkasten:
             self.git.save(msg=f'Removed note "{zk_id}"')
 
     def list(self) -> Sequence[tuple[str, str]]:
-        """
-        List zk_id, title of the notes in the database.
-        """
-        cur = self.index.cursor()
-        results = cur.execute(sql.LIST_STMT).fetchall()
-        cur.close()
+        results = self.dbmanager.list()
 
         return results
 
