@@ -116,7 +116,7 @@ class DBManager:
         except sqlite3.IntegrityError as e:
             raise DBManagerException("SQL error") from e
 
-    def delete_from_index(self, zk_id: str) -> None:
+    def delete_from_index(self, zk_id: int) -> None:
         """
         Delete note from index.
 
@@ -128,7 +128,7 @@ class DBManager:
         except sqlite3.IntegrityError as e:
             raise DBManagerException("SQL error") from e
 
-    def list(self) -> Sequence[tuple[str, str]]:
+    def list(self) -> Sequence[tuple[int, str]]:
         """
         List zk_id, title of the notes in the database.
         """

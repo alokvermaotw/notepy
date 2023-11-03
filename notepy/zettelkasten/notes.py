@@ -50,7 +50,7 @@ class BaseNote(ABC):
              path: str | Path,
              parsing_obj: Collection[str],
              delimiter: str = "---",
-             special_names: Collection[str] = ("date", "tags"),
+             special_names: Collection[str] = ("date", "tags", 'zk_id'),
              header: str = "# ",
              link_del: tuple[str, str] = ('[[', ']]')) -> Note:
         """
@@ -83,7 +83,7 @@ class Note(BaseNote):
     title: str
     author: str
     date: datetime
-    zk_id: str
+    zk_id: int
     tags: Collection[str]
     links: Collection[str]
     frontmatter: str
@@ -113,7 +113,7 @@ class Note(BaseNote):
              path: str | Path,
              parsing_obj: Collection[str],
              delimiter: str = "---",
-             special_names: Collection[str] = ("date", "tags"),
+             special_names: Collection[str] = ("date", "tags", 'zk_id'),
              header: str = "# ",
              link_del: tuple[str, str] = ('[[', ']]')) -> Note:
         """
@@ -204,7 +204,7 @@ class Note(BaseNote):
         """
 
         date = datetime.now()
-        zk_id = Note._generate_id(title, author, date)
+        zk_id = Note._generate_id(date)
 
         metadata = {
             'title': title,
@@ -217,7 +217,7 @@ class Note(BaseNote):
         return metadata
 
     @staticmethod
-    def _generate_id(title: str, author: str, date: datetime) -> str:
+    def _generate_id(date: datetime) -> int:
         """
         Generate the id for a singe note.
 
@@ -225,7 +225,7 @@ class Note(BaseNote):
         :return: the note ID
         """
 
-        date_formatted = date.strftime("%Y%m%d%H%M%S")
+        date_formatted = int(date.strftime("%Y%m%d%H%M%S"))
 
         return date_formatted
 

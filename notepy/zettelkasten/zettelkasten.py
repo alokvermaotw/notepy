@@ -2,7 +2,7 @@ from __future__ import annotations
 from dataclasses import dataclass, fields
 from pathlib import Path
 from typing import Optional, Any
-from collections.abc import Sequence, MutableMapping
+from collections.abc import Sequence, MutableMapping, Collection
 import sqlite3
 from notepy.zettelkasten.notes import Note
 from notepy.cli.git_wrapper import Git
@@ -28,7 +28,7 @@ class Zettelkasten:
     delimiter: str = "---"
     header: str = "# "
     link_del: tuple[str, str] = ('[[', ']]')
-    special_values: tuple[str, str] = ('date', 'tags')
+    special_values: Collection[str] = ('date', 'tags', 'zk_id')
 
     def __post_init__(self) -> None:
         self.vault = Path(self.vault).expanduser()
@@ -194,7 +194,7 @@ class Zettelkasten:
             return None
 
         scratchpad = self.vault / "scratchpad"
-        filename = Path(new_note.zk_id).with_suffix(".md")
+        filename = Path(str(new_note.zk_id)).with_suffix(".md")
 
         if to_scratchpad:
             note_path = scratchpad / filename
@@ -214,7 +214,7 @@ class Zettelkasten:
         if self.git:
             self.git.save(msg=f'Commit "{new_note.zk_id}"')
 
-    def update(self, zk_id: str, confirmation: bool = False) -> None:
+    def update(self, zk_id: int, confirmation: bool = False) -> None:
         """
         Update the note corresponding to the provded ID.
 
@@ -227,7 +227,7 @@ class Zettelkasten:
             raise ZettelkastenException(f"Note '{zk_id}' does not exist.")
 
         # read the note
-        filename = Path(zk_id).with_suffix(".md")
+        filename = Path(str(zk_id)).with_suffix(".md")
         note_path = self.vault / filename
         note = Note.read(path=note_path,
                          parsing_obj=self.header_obj,
@@ -258,7 +258,7 @@ class Zettelkasten:
         if self.git:
             self.git.save(msg=f'Updated "{new_note.zk_id}"')
 
-    def delete(self, zk_id: str, confirmation: bool = False) -> None:
+    def delete(self, zk_id: int, confirmation: bool = False) -> None:
         """
         Delete a note.
 
@@ -270,7 +270,7 @@ class Zettelkasten:
         if not self._note_exists(zk_id):
             raise ZettelkastenException(f"Note '{zk_id}' does not exist.")
 
-        filename = Path(zk_id).with_suffix(".md")
+        filename = Path(str(zk_id)).with_suffix(".md")
         note_path = self.vault / filename
 
         # ask for confirmation
@@ -289,18 +289,18 @@ class Zettelkasten:
         if self.git:
             self.git.save(msg=f'Removed note "{zk_id}"')
 
-    def list(self) -> Sequence[tuple[str, str]]:
+    def list(self) -> Sequence[tuple[int, str]]:
         results = self.dbmanager.list()
 
         return results
 
     # NOTE: maybe it could just be quicker to catch FileNotFoundError?
-    def _note_exists(self, zk_id: str) -> bool:
+    def _note_exists(self, zk_id: int) -> bool:
         all_ids = [id for id, title in self.list()]
 
         return zk_id in all_ids
 
-    def print_note(self, zk_id: str) -> str:
+    def print_note(self, zk_id: int) -> str:
         """
         Print the content of the note with the corresponding ID.
 
@@ -311,7 +311,7 @@ class Zettelkasten:
         if not self._note_exists(zk_id):
             raise ZettelkastenException(f"Note '{zk_id}' does not exist.")
 
-        filename = Path(zk_id).with_suffix(".md")
+        filename = Path(str(zk_id)).with_suffix(".md")
         note_path = self.vault / filename
         note = Note.read(path=note_path,
                          parsing_obj=self.header_obj,
