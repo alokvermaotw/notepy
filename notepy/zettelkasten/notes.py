@@ -137,7 +137,7 @@ class Note(BaseNote):
             body_meta, _ = body_parser.parse(f)
 
         # raise exception if first header is different from title
-        if body_meta['header'][0].removeprefix("#").strip() != frontmatter_meta['title']:
+        if body_meta['header'][0].removeprefix(header).strip() != frontmatter_meta['title']:
             raise NoteException("First header and title must be the same.")
 
         frontmatter = cls._generate_frontmatter(frontmatter_meta)
