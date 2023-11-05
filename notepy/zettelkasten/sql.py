@@ -144,9 +144,8 @@ class DBManager:
         """
         List zk_id, title of the notes in the database.
         """
-        cur = self.connection.cursor()
-        results = cur.execute(_LIST_STMT).fetchall()
-        cur.close()
+        with self.connection as conn:
+            results = conn.execute(_LIST_STMT).fetchall()
 
         return results
 
