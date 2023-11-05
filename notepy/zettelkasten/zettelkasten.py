@@ -181,6 +181,10 @@ class Zettelkasten:
 
         return new_note
 
+    def _check_unique_title(self, note_title: str) -> None:
+        all_titles = [title for zk_id, title in self.list()]
+        if note_title in all_titles:
+            raise TitleClashError("Title is already used in another note.")
     def new(self,
             title: str,
             author: str,
@@ -194,6 +198,8 @@ class Zettelkasten:
         :param to_scratchpad: whether the note should go to the scratchpad.
         :param confirmation: whether to ask for confirmation to save the note.
         """
+        # check title is unique
+        self._check_unique_title(title)
         # new note
         tmp_note = self.note_obj.new(title, author)
 
@@ -238,12 +244,12 @@ class Zettelkasten:
         # read the note
         filename = Path(str(zk_id)).with_suffix(".md")
         note_path = self.vault / filename
-        note = Note.read(path=note_path,
-                         parsing_obj=self.header_obj,
-                         delimiter=self.delimiter,
-                         special_names=self.special_values,
-                         header=self.header,
-                         link_del=self.link_del)
+        note = self.note_obj.read(path=note_path,
+                                  parsing_obj=self.header_obj,
+                                  delimiter=self.delimiter,
+                                  special_names=self.special_values,
+                                  header=self.header,
+                                  link_del=self.link_del)
 
         new_note = self._edit_temporary_note(note, confirmation=confirmation)
         if new_note is None:
@@ -253,6 +259,10 @@ class Zettelkasten:
         if new_note.zk_id != zk_id:
             raise IDChangedError("You cannot change the ID of an existing note.")
 
+        # if title was changed, make sure it doesn't clash
+        # with other notes
+        if new_note.title != note.title:
+            self._check_unique_title(new_note.title)
         # save the new note
         with open(note_path, "w") as f:
             f.write(new_note.materialize())
@@ -322,12 +332,12 @@ class Zettelkasten:
 
         filename = Path(str(zk_id)).with_suffix(".md")
         note_path = self.vault / filename
-        note = Note.read(path=note_path,
-                         parsing_obj=self.header_obj,
-                         delimiter=self.delimiter,
-                         special_names=self.special_values,
-                         header=self.header,
-                         link_del=self.link_del)
+        note = self.note_obj.read(path=note_path,
+                                  parsing_obj=self.header_obj,
+                                  delimiter=self.delimiter,
+                                  special_names=self.special_values,
+                                  header=self.header,
+                                  link_del=self.link_del)
 
         content = note.materialize()
 
