@@ -20,6 +20,13 @@ class Zettelkasten:
     :param vault: the path to the vault (dir containing the data).
     :param index: the connection to the database.
     :param git: whether the vault is a git repo.
+    :param note_obj: the type of note you're going to use.
+    :param delimiter: the delimiter of the frontmatter section.
+                      Defaults to '---'
+    :param header: the symbol used for headers. Defaults to '# '
+    :param link_del: delimiter for links. Defaults to '("[[", "]]")'
+    :param special_values: values of the frontmatter
+                           that require special parsing.
     """
     vault: Path
     index: sqlite3.Connection
@@ -39,8 +46,8 @@ class Zettelkasten:
                            if note_field.name not in ['links', 'frontmatter', 'body']]
 
         if not self.vault.is_dir():
-            raise ZettelkastenException(f"Vault '{self.vault}' is not a directory "
-                                        "or does not exist.")
+            raise VaultError(f"Vault '{self.vault}' is not a directory "
+                             "or does not exist.")
 
     @classmethod
     def initialize(cls,
@@ -139,7 +146,8 @@ class Zettelkasten:
 
         :param note: the note to edit.
         :param confirmation: whether to ask for confirmation.
-        :return: if confirmation=True and input was no, return None. Else the note.
+        :return: if confirmation=True and input was no,
+                 return None. Else the note.
         """
 
         # check if scratchpad exists. We are going to create the temporary
@@ -155,7 +163,8 @@ class Zettelkasten:
             subprocess.run(['hx', f.name],
                            cwd=self.vault)
 
-            # TODO: consider whether opening two handles to same file is good idea
+            # TODO: consider whether opening two handles to same file is good
+            # idea
             # TODO: make read arguments less implementation dependent.
             # create the note from the new data
             new_note = self.note_obj.read(path=f.name,
@@ -242,7 +251,7 @@ class Zettelkasten:
 
         # if id was changed, raise an error.
         if new_note.zk_id != zk_id:
-            raise ZettelkastenException("""You cannot change the ID of an existing note.""")
+            raise IDChangedError("You cannot change the ID of an existing note.")
 
         # save the new note
         with open(note_path, "w") as f:
