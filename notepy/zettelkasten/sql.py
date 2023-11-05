@@ -1,12 +1,12 @@
+"""
+SQLite statements to manage index
+"""
+
 import sqlite3
 from notepy.zettelkasten.notes import Note
 from datetime import datetime
 from collections.abc import Sequence
 
-
-"""
-SQLite statements to manage index
-"""
 
 _CREATE_MAIN_TABLE_STMT = """
     CREATE TABLE IF NOT EXISTS zettelkasten(zk_id STRING NOT NULL,

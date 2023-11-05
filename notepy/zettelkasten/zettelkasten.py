@@ -10,8 +10,8 @@ from notepy.zettelkasten.sql import DBManager
 from tempfile import NamedTemporaryFile
 import subprocess
 from glob import glob1
-from threading import Lock
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ProcessPoolExecutor
+from multiprocessing import Lock
 
 
 # TODO: implement an abstract class for this.
@@ -379,14 +379,14 @@ class Zettelkasten:
         with self._lock:
             self.dbmanager.add_to_index(note)
 
-    def multithreaded_index_vault(self) -> None:
+    def multiprocess_index_vault(self) -> None:
         notes_paths: list[str] = glob1(str(self.vault), "*.md")
         # drop the tables
         self.dbmanager.drop_tables()
         # create new tables
         self.dbmanager.create_tables()
 
-        with ThreadPoolExecutor() as executor:
+        with ProcessPoolExecutor() as executor:
             executor.map(self._index_note, notes_paths)
 
 
