@@ -32,6 +32,9 @@ _CREATE_LINKS_TABLE_STMT = """
         ON UPDATE CASCADE
         ON DELETE CASCADE)
 """
+_DROP_MAIN_TABLE_STMT = "DROP TABLE IF EXISTS zettelkasten;"
+_DROP_TAGS_TABLE_STMT = "DROP TABLE IF EXISTS tags;"
+_DROP_LINKS_TABLE_STMT = "DROP TABLE IF EXISTS links;"
 _INSERT_MAIN_STMT = "INSERT INTO zettelkasten VALUES (?, ?, ?, ?, ?)"
 _INSERT_TAGS_STMT = "INSERT INTO tags VALUES (?, ?)"
 _INSERT_LINKS_STMT = "INSERT INTO links VALUES (?, ?)"
@@ -66,6 +69,15 @@ class DBManager:
             conn.execute(_CREATE_MAIN_TABLE_STMT)
             conn.execute(_CREATE_TAGS_TABLE_STMT)
             conn.execute(_CREATE_LINKS_TABLE_STMT)
+
+    def drop_tables(self) -> None:
+        """
+        Drop all the tables.
+        """
+        with self.connection as conn:
+            conn.execute(_DROP_MAIN_TABLE_STMT)
+            conn.execute(_DROP_TAGS_TABLE_STMT)
+            conn.execute(_DROP_LINKS_TABLE_STMT)
 
     def update_note_to_index(self, note: Note) -> None:
         """
