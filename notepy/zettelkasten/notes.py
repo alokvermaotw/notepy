@@ -132,6 +132,10 @@ class Note(BaseNote):
                                      special_names=special_names)
         body_parser = BodyParser(header1=header,
                                  link_del=link_del)
+
+        if not Path(path).exists():
+            raise NoteException("Note does not exist. Consider reindexing the vault.")
+
         with open(path) as f:
             frontmatter_meta, _ = header_parser.parse(handle=f)
             body_meta, _ = body_parser.parse(handle=f)

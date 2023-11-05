@@ -170,10 +170,8 @@ class Zettelkasten:
                                           header=self.header,
                                           link_del=self.link_del)
         # ask for confirmation
-        if confirmation:
-            response = input("Save note? [Y/n]: ")
-            if response.lower() in ['n', 'no', 'nope']:
-                return None
+        if confirmation and not self._ask_for_confirmation():
+            return None
 
         return new_note
 
@@ -343,6 +341,10 @@ class Zettelkasten:
         return content
 
     def index_vault(self) -> None:
+        """
+        Reindex the zettelkasten vault from scratch.
+        Single threaded function.
+        """
         notes_paths: list[str] = glob1(str(self.vault), "*.md")
         # drop the tables
         self.dbmanager.drop_tables()
@@ -360,7 +362,18 @@ class Zettelkasten:
                                       link_del=self.link_del)
             self.dbmanager.add_to_index(note)
 
+        # add and commit
+        if self.git:
+            self.git.save(msg='Reindexed vault')
+
     def _read_note(self, note_path: str) -> Note:
+        """
+        Utility function for multi core vault reindexing.
+        It reads the content of a note given its path.
+
+        :param note_path: path to the note to read.
+        :return: the note object.
+        """
         full_path = self.vault / note_path
         note = self.note_obj.read(path=full_path,
                                   parsing_obj=self.header_obj,
@@ -372,6 +385,10 @@ class Zettelkasten:
         return note
 
     def multiprocess_index_vault(self) -> None:
+        """
+        Reindex the zettelkasten vault from scratch.
+        Multiple cores function.
+        """
         notes_paths: list[str] = glob1(str(self.vault), "*.md")
         # drop the tables
         self.dbmanager.drop_tables()
@@ -383,6 +400,74 @@ class Zettelkasten:
 
         for note in notes:
             self.dbmanager.add_to_index(note)
+
+        # add and commit
+        if self.git:
+            self.git.save(msg='Reindexed vault')
+
+    def import_from_scratchpad(self, zk_id: int,
+                               confirmation: bool = False) -> None:
+        # check the ID is unique
+        if self._note_exists(zk_id):
+            raise ZettelkastenException(f"Note '{zk_id}' already exists.")
+
+        # check scratchpad exists
+        scratchpad = self.vault / "scratchpad"
+        if not scratchpad.exists() or not scratchpad.is_dir():
+            raise Zettelkasten("Scratchpad does not exist.")
+
+        filename = Path(str(zk_id)).with_suffix(".md")
+        note_path = scratchpad / filename
+        note = self.note_obj.read(path=note_path,
+                                  parsing_obj=self.header_obj,
+                                  delimiter=self.delimiter,
+                                  special_names=self.special_values,
+                                  header=self.header,
+                                  link_del=self.link_del)
+
+        # check title is unique
+        self._check_unique_title(note.title)
+
+        # ask for confirmation
+        msg = "Move from scratchpad?"
+        if confirmation and not self._ask_for_confirmation(msg):
+            return None
+
+        # save the new note
+        with open(self.vault / filename, "w") as f:
+            f.write(note.materialize())
+
+        # remove from scratchpad
+        note_path.unlink(missing_ok=True)
+
+        # update the index
+        self.dbmanager.add_to_index(note)
+
+        # update .last file
+        self._add_last_opened(filename)
+
+        # add and commit
+        if self.git:
+            self.git.save(msg=f'Moved "{note.zk_id}" from scratchpad')
+
+    def list_scratchpad(self) -> list[str]:
+        # check scratchpad exists
+        scratchpad = self.vault / "scratchpad"
+        if not scratchpad.exists() or not scratchpad.is_dir():
+            raise Zettelkasten("Scratchpad does not exist.")
+
+        notes: list[str] = glob1(str(scratchpad), "*.md")
+        scratchpad_ids = [int(note.removesuffix(".md")) for note in notes]
+
+        return scratchpad_ids
+
+    def _ask_for_confirmation(self, msg: str = "Save note?") -> bool:
+        response = input(f"{msg} [Y/n]: ")
+        commit = True
+        if response.lower() in ['n', 'no', 'nope']:
+            commit = False
+
+        return commit
 
 
 class ZettelkastenException(Exception):
