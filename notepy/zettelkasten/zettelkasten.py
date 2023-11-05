@@ -3,15 +3,13 @@ from dataclasses import dataclass, fields
 from pathlib import Path
 from typing import Optional, Any
 from collections.abc import Sequence, MutableMapping, Collection
-import sqlite3
 from notepy.zettelkasten.notes import Note
 from notepy.cli.git_wrapper import Git
 from notepy.zettelkasten.sql import DBManager
 from tempfile import NamedTemporaryFile
 import subprocess
 from glob import glob1
-from concurrent.futures import ProcessPoolExecutor
-from multiprocessing import Lock
+from multiprocessing import Pool
 
 
 # TODO: implement an abstract class for this.
@@ -21,7 +19,6 @@ class Zettelkasten:
     Zettelkasten manager object. Manages notes, database and repo.
 
     :param vault: the path to the vault (dir containing the data).
-    :param index: the connection to the database.
     :param git: whether the vault is a git repo.
     :param note_obj: the type of note you're going to use.
     :param delimiter: the delimiter of the frontmatter section.
@@ -32,7 +29,6 @@ class Zettelkasten:
                            that require special parsing.
     """
     vault: Path
-    index: sqlite3.Connection
     git: Optional[Git] = None
     note_obj: type[Note] = Note
     delimiter: str = "---"
@@ -42,12 +38,12 @@ class Zettelkasten:
 
     def __post_init__(self) -> None:
         self.vault = Path(self.vault).expanduser()
+        self.index = self.vault / ".index.db"
         self.last = self.vault / ".last"
         self.dbmanager = DBManager(self.index)
         self.header_obj = [note_field.name
                            for note_field in fields(self.note_obj)
                            if note_field.name not in ['links', 'frontmatter', 'body']]
-        self._lock = Lock()
 
         if not self.vault.is_dir():
             raise VaultError(f"Vault '{self.vault}' is not a directory "
@@ -91,13 +87,9 @@ class Zettelkasten:
         last = path / ".last"
         last.touch()
 
-        # create connection and main table
-        index = path / ".index.db"
-        conn = sqlite3.connect(index, check_same_thread=False)
-        zk_args['index'] = conn
-
         # create the tables
-        DBManager(conn).create_tables()
+        index = path / ".index.db"
+        DBManager(index).create_tables()
 
         # create scratchpad
         scratchpad = path / 'scratchpad'
@@ -368,7 +360,7 @@ class Zettelkasten:
                                       link_del=self.link_del)
             self.dbmanager.add_to_index(note)
 
-    def _index_note(self, note_path: str) -> None:
+    def _read_note(self, note_path: str) -> Note:
         full_path = self.vault / note_path
         note = self.note_obj.read(path=full_path,
                                   parsing_obj=self.header_obj,
@@ -376,8 +368,8 @@ class Zettelkasten:
                                   special_names=self.special_values,
                                   header=self.header,
                                   link_del=self.link_del)
-        with self._lock:
-            self.dbmanager.add_to_index(note)
+
+        return note
 
     def multiprocess_index_vault(self) -> None:
         notes_paths: list[str] = glob1(str(self.vault), "*.md")
@@ -386,8 +378,11 @@ class Zettelkasten:
         # create new tables
         self.dbmanager.create_tables()
 
-        with ProcessPoolExecutor() as executor:
-            executor.map(self._index_note, notes_paths)
+        with Pool() as executor:
+            notes = executor.map(self._read_note, notes_paths)
+
+        for note in notes:
+            self.dbmanager.add_to_index(note)
 
 
 class ZettelkastenException(Exception):

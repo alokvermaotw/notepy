@@ -6,6 +6,7 @@ import sqlite3
 from notepy.zettelkasten.notes import Note
 from datetime import datetime
 from collections.abc import Sequence
+from pathlib import Path
 
 
 _CREATE_MAIN_TABLE_STMT = """
@@ -58,14 +59,14 @@ class DBManager:
     :param connection: the connection to the index
     """
 
-    def __init__(self, connection: sqlite3.Connection) -> None:
-        self.connection = connection
+    def __init__(self, index: Path) -> None:
+        self.index = index
 
     def create_tables(self) -> None:
         """
         Create the index for a newly initialized zk.
         """
-        with self.connection as conn:
+        with sqlite3.connect(self.index) as conn:
             conn.execute(_CREATE_MAIN_TABLE_STMT)
             conn.execute(_CREATE_TAGS_TABLE_STMT)
             conn.execute(_CREATE_LINKS_TABLE_STMT)
@@ -74,7 +75,7 @@ class DBManager:
         """
         Drop all the tables.
         """
-        with self.connection as conn:
+        with sqlite3.connect(self.index) as conn:
             conn.execute(_DROP_MAIN_TABLE_STMT)
             conn.execute(_DROP_TAGS_TABLE_STMT)
             conn.execute(_DROP_LINKS_TABLE_STMT)
@@ -94,7 +95,7 @@ class DBManager:
         links_payload = [(link, note.zk_id) for link in note.links]
 
         try:
-            with self.connection as conn:
+            with sqlite3.connect(self.index) as conn:
                 conn.execute(_UPDATE_MAIN_STMT, main_payload)
                 # update tags and links
                 conn.execute(_DELETE_TAGS_STMT, (note.zk_id,))
@@ -121,7 +122,7 @@ class DBManager:
         links_payload = [(link, note.zk_id) for link in note.links]
 
         try:
-            with self.connection as conn:
+            with sqlite3.connect(self.index) as conn:
                 conn.execute(_INSERT_MAIN_STMT, main_payload)
                 conn.executemany(_INSERT_TAGS_STMT, tags_payload)
                 conn.executemany(_INSERT_LINKS_STMT, links_payload)
@@ -135,7 +136,7 @@ class DBManager:
         :param note: note to delete.
         """
         try:
-            with self.connection as conn:
+            with sqlite3.connect(self.index) as conn:
                 conn.execute(_DELETE_MAIN_STMT, (zk_id,))
         except sqlite3.IntegrityError as e:
             raise DBManagerException("SQL error") from e
@@ -144,7 +145,7 @@ class DBManager:
         """
         List zk_id, title of the notes in the database.
         """
-        with self.connection as conn:
+        with sqlite3.connect(self.index) as conn:
             results = conn.execute(_LIST_STMT).fetchall()
 
         return results
