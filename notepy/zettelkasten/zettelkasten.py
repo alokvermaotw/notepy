@@ -327,3 +327,15 @@ class Zettelkasten:
 
 class ZettelkastenException(Exception):
     """Main exception raised by Zettelkasten"""
+
+
+class IDChangedError(ZettelkastenException):
+    pass
+
+
+class TitleClashError(ZettelkastenException):
+    pass
+
+
+class VaultError(ZettelkastenException):
+    pass
