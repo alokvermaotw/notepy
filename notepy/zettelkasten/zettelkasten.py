@@ -9,6 +9,9 @@ from notepy.cli.git_wrapper import Git
 from notepy.zettelkasten.sql import DBManager
 from tempfile import NamedTemporaryFile
 import subprocess
+from glob import glob1
+from threading import Lock
+from concurrent.futures import ThreadPoolExecutor
 
 
 # TODO: implement an abstract class for this.
@@ -44,6 +47,7 @@ class Zettelkasten:
         self.header_obj = [note_field.name
                            for note_field in fields(self.note_obj)
                            if note_field.name not in ['links', 'frontmatter', 'body']]
+        self._lock = Lock()
 
         if not self.vault.is_dir():
             raise VaultError(f"Vault '{self.vault}' is not a directory "
@@ -89,7 +93,7 @@ class Zettelkasten:
 
         # create connection and main table
         index = path / ".index.db"
-        conn = sqlite3.connect(index)
+        conn = sqlite3.connect(index, check_same_thread=False)
         zk_args['index'] = conn
 
         # create the tables
@@ -185,6 +189,7 @@ class Zettelkasten:
         all_titles = [title for zk_id, title in self.list()]
         if note_title in all_titles:
             raise TitleClashError("Title is already used in another note.")
+
     def new(self,
             title: str,
             author: str,
@@ -200,6 +205,7 @@ class Zettelkasten:
         """
         # check title is unique
         self._check_unique_title(title)
+
         # new note
         tmp_note = self.note_obj.new(title, author)
 
@@ -263,6 +269,7 @@ class Zettelkasten:
         # with other notes
         if new_note.title != note.title:
             self._check_unique_title(new_note.title)
+
         # save the new note
         with open(note_path, "w") as f:
             f.write(new_note.materialize())
@@ -342,6 +349,45 @@ class Zettelkasten:
         content = note.materialize()
 
         return content
+
+    def index_vault(self) -> None:
+        notes_paths: list[str] = glob1(str(self.vault), "*.md")
+        # drop the tables
+        self.dbmanager.drop_tables()
+        # create new tables
+        self.dbmanager.create_tables()
+
+        # index all the notes
+        for note_path in notes_paths:
+            full_path = self.vault / note_path
+            note = self.note_obj.read(path=full_path,
+                                      parsing_obj=self.header_obj,
+                                      delimiter=self.delimiter,
+                                      special_names=self.special_values,
+                                      header=self.header,
+                                      link_del=self.link_del)
+            self.dbmanager.add_to_index(note)
+
+    def _index_note(self, note_path: str) -> None:
+        full_path = self.vault / note_path
+        note = self.note_obj.read(path=full_path,
+                                  parsing_obj=self.header_obj,
+                                  delimiter=self.delimiter,
+                                  special_names=self.special_values,
+                                  header=self.header,
+                                  link_del=self.link_del)
+        with self._lock:
+            self.dbmanager.add_to_index(note)
+
+    def multithreaded_index_vault(self) -> None:
+        notes_paths: list[str] = glob1(str(self.vault), "*.md")
+        # drop the tables
+        self.dbmanager.drop_tables()
+        # create new tables
+        self.dbmanager.create_tables()
+
+        with ThreadPoolExecutor() as executor:
+            executor.map(self._index_note, notes_paths)
 
 
 class ZettelkastenException(Exception):
