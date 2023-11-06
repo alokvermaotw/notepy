@@ -6,13 +6,13 @@ from __future__ import annotations
 import subprocess
 from typing import Optional, Any
 from pathlib import Path
-from notepy.cli.base_cli import BaseCli, CliException, run_and_handle
+from notepy.wrappers.base_wrapper import BaseWrapper, WrapperException, run_and_handle
 
 
 # TODO: implement branch management?
 # TODO: implement `git branch {branch} --set-upstream-to=`?
 # TODO: better error handling for when dir is deleted
-class Git(BaseCli):
+class Git(BaseWrapper):
     """
     Wrapper for git cli
 
@@ -239,5 +239,5 @@ class Git(BaseCli):
 
 
 # TODO: more granular exceptions?
-class GitException(CliException):
+class GitException(WrapperException):
     """Error raised when git is involved"""

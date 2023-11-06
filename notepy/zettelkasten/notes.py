@@ -12,7 +12,6 @@ from pathlib import Path
 from collections.abc import Collection, MutableMapping
 from typing import Any
 from notepy.parser.parser import HeaderParser, BodyParser
-from hashlib import md5
 
 
 class BaseNote(ABC):

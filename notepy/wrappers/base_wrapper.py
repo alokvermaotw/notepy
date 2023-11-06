@@ -36,7 +36,7 @@ def run_and_handle(command: str,
     return process_result
 
 
-class BaseCli(ABC):
+class BaseWrapper(ABC):
     """
     Base wrapper for CLI utilities.
 
@@ -54,10 +54,10 @@ class BaseCli(ABC):
         try:
             subprocess.run(self.cmd, capture_output=True, check=True)
         except FileNotFoundError:
-            raise CliException(f'{self.cmd} is not present on your system.')
+            raise WrapperException(f'{self.cmd} is not present on your system.')
         except subprocess.CalledProcessError:
             pass
 
 
-class CliException(Exception):
+class WrapperException(Exception):
     """Exception to raise whenever some CLI wrapper throws"""

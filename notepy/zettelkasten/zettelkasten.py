@@ -8,7 +8,7 @@ import subprocess
 from glob import glob1
 from multiprocessing import Pool
 from notepy.zettelkasten.notes import Note
-from notepy.cli.git_wrapper import Git, GitException
+from notepy.wrappers.git_wrapper import Git, GitException
 from notepy.zettelkasten.sql import DBManager
 
 
