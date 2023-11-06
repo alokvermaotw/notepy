@@ -3,13 +3,13 @@ from dataclasses import dataclass, fields
 from pathlib import Path
 from typing import Optional, Any
 from collections.abc import Sequence, MutableMapping, Collection
-from notepy.zettelkasten.notes import Note
-from notepy.cli.git_wrapper import Git
-from notepy.zettelkasten.sql import DBManager
 from tempfile import NamedTemporaryFile
 import subprocess
 from glob import glob1
 from multiprocessing import Pool
+from notepy.zettelkasten.notes import Note
+from notepy.cli.git_wrapper import Git, GitException
+from notepy.zettelkasten.sql import DBManager
 
 
 # TODO: implement an abstract class for this.
@@ -40,7 +40,9 @@ class Zettelkasten:
         self.vault = Path(self.vault).expanduser()
         self.index = self.vault / ".index.db"
         self.last = self.vault / ".last"
+        self.scratchpad = self.vault / "scratchpad"
         self.dbmanager = DBManager(self.index)
+        self.git = self._detect_git_repo()
         self.header_obj = [note_field.name
                            for note_field in fields(self.note_obj)
                            if note_field.name not in ['links', 'frontmatter', 'body']]
@@ -149,10 +151,9 @@ class Zettelkasten:
         # check if scratchpad exists. We are going to create the temporary
         # note inside the scratchpad so that its creation is not
         # detected by git, since by default scratchpad is in .gitignore
-        scratchpad = (self.vault / "scratchpad")
-        scratchpad.mkdir(exist_ok=True)
+        self.scratchpad.mkdir(exist_ok=True)
 
-        with NamedTemporaryFile("w", dir=scratchpad, suffix=".md") as f:
+        with NamedTemporaryFile("w", dir=self.scratchpad, suffix=".md") as f:
             # write the note in the temporary file
             f.write(note.materialize())
             f.seek(0)
@@ -176,7 +177,7 @@ class Zettelkasten:
         return new_note
 
     def _check_unique_title(self, note_title: str) -> None:
-        all_titles = [title for zk_id, title in self.list()]
+        all_titles = [title for zk_id, title in self.list_notes()]
         if note_title in all_titles:
             raise TitleClashError("Title is already used in another note.")
 
@@ -204,11 +205,11 @@ class Zettelkasten:
         if new_note is None:
             return None
 
-        scratchpad = self.vault / "scratchpad"
+        self.scratchpad.mkdir(exist_ok=True)
         filename = Path(str(new_note.zk_id)).with_suffix(".md")
 
         if to_scratchpad:
-            note_path = scratchpad / filename
+            note_path = self.scratchpad / filename
         else:
             note_path = self.vault / filename
             # if not in scratchpad, add the metadata to the database
@@ -305,14 +306,14 @@ class Zettelkasten:
         if self.git:
             self.git.save(msg=f'Removed note "{zk_id}"')
 
-    def list(self) -> Sequence[tuple[int, str]]:
+    def list_notes(self) -> Sequence[tuple[int, str]]:
         results = self.dbmanager.list()
 
         return results
 
     # NOTE: maybe it could just be quicker to catch FileNotFoundError?
     def _note_exists(self, zk_id: int) -> bool:
-        all_ids = [id for id, title in self.list()]
+        all_ids = [id for id, title in self.list_notes()]
 
         return zk_id in all_ids
 
@@ -405,19 +406,26 @@ class Zettelkasten:
         if self.git:
             self.git.save(msg='Reindexed vault')
 
-    def import_from_scratchpad(self, zk_id: int,
+    def import_from_scratchpad(self,
+                               zk_id: int,
                                confirmation: bool = False) -> None:
+        """
+        Move a note from the scratchpad to the main vault.
+        This will add the note metadata to the database.
+
+        :param zk_id: ID of the note.
+        :param confirmation: whether to ask for confirmation. If True, and
+                             confirmation is no, the note will not be moved.
+        """
         # check the ID is unique
         if self._note_exists(zk_id):
             raise ZettelkastenException(f"Note '{zk_id}' already exists.")
 
         # check scratchpad exists
-        scratchpad = self.vault / "scratchpad"
-        if not scratchpad.exists() or not scratchpad.is_dir():
-            raise Zettelkasten("Scratchpad does not exist.")
+        self._check_scratchpad_exists()
 
         filename = Path(str(zk_id)).with_suffix(".md")
-        note_path = scratchpad / filename
+        note_path = self.scratchpad / filename
         note = self.note_obj.read(path=note_path,
                                   parsing_obj=self.header_obj,
                                   delimiter=self.delimiter,
@@ -450,13 +458,16 @@ class Zettelkasten:
         if self.git:
             self.git.save(msg=f'Moved "{note.zk_id}" from scratchpad')
 
-    def list_scratchpad(self) -> list[str]:
-        # check scratchpad exists
-        scratchpad = self.vault / "scratchpad"
-        if not scratchpad.exists() or not scratchpad.is_dir():
-            raise Zettelkasten("Scratchpad does not exist.")
+    def list_scratchpad(self) -> list[int]:
+        """
+        List the note IDs of the notes contained in the scratchpad.
 
-        notes: list[str] = glob1(str(scratchpad), "*.md")
+        :return: list of zk_id of the notes in the scratchpad.
+        """
+        # check scratchpad exists
+        self._check_scratchpad_exists()
+
+        notes: list[str] = glob1(str(self.scratchpad), "*.md")
         scratchpad_ids = [int(note.removesuffix(".md")) for note in notes]
 
         return scratchpad_ids
@@ -468,6 +479,18 @@ class Zettelkasten:
             commit = False
 
         return commit
+
+    def _check_scratchpad_exists(self) -> None:
+
+        if not self.scratchpad.exists() or not self.scratchpad.is_dir():
+            raise ScratchpadError("Scratchpad does not exist.")
+
+    def _detect_git_repo(self) -> Git | None:
+        try:
+            git = Git(self.vault)
+            return git
+        except GitException:
+            return None
 
 
 class ZettelkastenException(Exception):
@@ -483,4 +506,8 @@ class TitleClashError(ZettelkastenException):
 
 
 class VaultError(ZettelkastenException):
+    pass
+
+
+class ScratchpadError(ZettelkastenException):
     pass
