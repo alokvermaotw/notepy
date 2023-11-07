@@ -1,7 +1,7 @@
 from __future__ import annotations
 from dataclasses import dataclass, fields
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
 from collections.abc import Sequence, MutableMapping, Collection
 from tempfile import NamedTemporaryFile
 import subprocess
@@ -28,11 +28,14 @@ class Zettelkasten(GitMixin):
                            that require special parsing.
     """
     vault: Path
+    author: str
     note_obj: type[Note] = Note
     delimiter: str = "---"
     header: str = "# "
     link_del: tuple[str, str] = ('[[', ']]')
     special_values: Collection[str] = ('date', 'tags', 'zk_id')
+    autocommit: bool = True
+    autosync: bool = False
 
     def __post_init__(self) -> None:
         self.vault = Path(self.vault).expanduser()
@@ -60,6 +63,8 @@ class Zettelkasten(GitMixin):
                    header: str = "# ",
                    link_del: tuple[str, str] = ('[[', ']]'),
                    special_values: tuple[str, str] = ('date', 'tags'),
+                   autocommit: bool = False,
+                   autosync: bool = False,
                    force: bool = False) -> Zettelkasten:
         """
         Initialize a new vault. A vault is made of a collection of
@@ -106,7 +111,10 @@ class Zettelkasten(GitMixin):
             # add origin if provided
             if git_origin:
                 git.origin = git_origin
-            git.save()
+            if autocommit:
+                git.commit_on_change()
+            if autosync:
+                git.push()
 
         zk_args: MutableMapping[str, Any] = {
             'vault': path,
@@ -114,7 +122,9 @@ class Zettelkasten(GitMixin):
             'delimiter': delimiter,
             'header': header,
             'link_del': link_del,
-            'special_values': special_values
+            'special_values': special_values,
+            'autocommit': autocommit,
+            'autosync': autosync
         }
 
         return cls(**zk_args)
@@ -197,7 +207,7 @@ class Zettelkasten(GitMixin):
 
     def new(self,
             title: str,
-            author: str,
+            author: Optional[str] = None,
             to_scratchpad: bool = False,
             confirmation: bool = False) -> None:
         """
@@ -210,6 +220,10 @@ class Zettelkasten(GitMixin):
         """
         # check title is unique
         self._check_unique_title(title)
+
+        # if different author is provided, that takes precedence
+        if author is None:
+            author = self.author
 
         # new note
         tmp_note = self.note_obj.new(title, author)
@@ -237,8 +251,9 @@ class Zettelkasten(GitMixin):
         self._add_last_opened(filename)
 
         # add and commit
-        if self.git:
-            self.git.save(msg=f'Commit "{new_note.zk_id}"')
+        self.commit_and_sync(msg=f'Commit "{new_note.zk_id}"',
+                             commit=self.autocommit,
+                             push=self.autosync)
 
     def update(self, zk_id: int, confirmation: bool = False) -> None:
         """
@@ -286,8 +301,9 @@ class Zettelkasten(GitMixin):
         self._add_last_opened(filename)
 
         # add and commit
-        if self.git:
-            self.git.save(msg=f'Updated "{new_note.zk_id}"')
+        self.commit_and_sync(msg=f'Updated "{new_note.zk_id}"',
+                             commit=self.autocommit,
+                             push=self.autosync)
 
     def delete(self, zk_id: int, confirmation: bool = False) -> None:
         """
@@ -317,8 +333,9 @@ class Zettelkasten(GitMixin):
         note_path.unlink(missing_ok=True)
 
         # add and commit
-        if self.git:
-            self.git.save(msg=f'Removed note "{zk_id}"')
+        self.commit_and_sync(msg=f'Removed note "{zk_id}"',
+                             commit=self.autocommit,
+                             push=self.autosync)
 
     def list_notes(self) -> Sequence[tuple[int, str]]:
         results = self.dbmanager.list()
@@ -378,8 +395,9 @@ class Zettelkasten(GitMixin):
             self.dbmanager.add_to_index(note)
 
         # add and commit
-        if self.git:
-            self.git.save(msg='Reindexed vault')
+        self.commit_and_sync(msg='Reindexed vault',
+                             commit=self.autocommit,
+                             push=self.autosync)
 
     def _read_note(self, note_path: str) -> Note:
         """
@@ -417,8 +435,9 @@ class Zettelkasten(GitMixin):
             self.dbmanager.add_to_index(note)
 
         # add and commit
-        if self.git:
-            self.git.save(msg='Reindexed vault')
+        self.commit_and_sync(msg='Reindexed vault',
+                             commit=self.autocommit,
+                             push=self.autosync)
 
     def import_from_scratchpad(self,
                                zk_id: int,
@@ -469,8 +488,9 @@ class Zettelkasten(GitMixin):
         self._add_last_opened(filename)
 
         # add and commit
-        if self.git:
-            self.git.save(msg=f'Moved "{note.zk_id}" from scratchpad')
+        self.commit_and_sync(msg=f'Moved "{note.zk_id}" from scratchpad',
+                             commit=self.autocommit,
+                             push=self.autosync)
 
     def list_scratchpad(self) -> list[int]:
         """

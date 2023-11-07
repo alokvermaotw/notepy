@@ -123,7 +123,7 @@ class Git(BaseWrapper):
         Pull from origin
         """
         if not self._origin_exists():
-            raise GitException("""origin does not exist.""")
+            raise GitException("""Origin does not exist.""")
 
         process = run_and_handle(f'git pull origin {self.branch}',
                                  exception=GitException,
@@ -131,12 +131,15 @@ class Git(BaseWrapper):
                                  comment="Check that origin is correct")
         del process
 
-    def save(self, msg: str = "commit notes") -> None:
+    def commit_on_change(self, msg: str = "commit notes") -> None:
         if self.has_changed():
             self.add()
             self.commit(msg)
-            if self.origin:
-                self.push()
+
+    def save(self, msg: str = "commit notes") -> None:
+        self.commit_on_change(msg)
+        if self.origin:
+            self.push()
 
     def _origin_exists(self) -> bool:
         """
@@ -196,7 +199,7 @@ class Git(BaseWrapper):
                              f"{process.stdout.decode('utf-8')}")
             raise GitException(error_message)
         else:
-            origin = process.stdout.decode('utf-8')
+            origin = process.stdout.decode('utf-8').strip()
 
         return origin
 
@@ -254,8 +257,7 @@ class GitMixinProtocol(Protocol):
 class GitMixin:
     """
     Mixin for git support.
-    Assumes that class that inherits
-    has a path attribute.
+    Assumes that class that inherits has a path attribute.
     """
 
     def git_init(self: GitMixinProtocol,
@@ -282,7 +284,16 @@ class GitMixin:
         else:
             raise GitException(f"'{self.vault}' is not a git repository.")
 
-    def set_origin(self: GitMixinProtocol, origin: str) -> None:
+    def get_remote(self: GitMixinProtocol) -> str | None:
+        """
+        Show remote origin of a git repo.
+        """
+        if (git := self._detect_git_repo(self.vault)):
+            return git.origin
+        else:
+            return None
+
+    def set_remote(self: GitMixinProtocol, origin: str) -> None:
         """
         Add remote origin to a git repo.
 
@@ -291,12 +302,46 @@ class GitMixin:
         if (git := self._detect_git_repo(self.vault)):
             git.origin = origin
 
-    def remove_origin(self: GitMixinProtocol) -> None:
+    def remove_remote(self: GitMixinProtocol) -> None:
         """
         Delete remote origin from a git repo.
         """
         if (git := self._detect_git_repo(self.vault)):
             del git.origin
+
+    def push_remote(self: GitMixinProtocol) -> None:
+        """
+        Push to remote
+        """
+        if (git := self._detect_git_repo(self.vault)):
+            git.push()
+
+    def pull_remote(self: GitMixinProtocol) -> None:
+        """
+        Push to remote
+        """
+        if (git := self._detect_git_repo(self.vault)):
+            git.pull()
+
+    def sync(self) -> None:
+        """
+        Synchronize with remote origin.
+        """
+        self.pull_remote()
+        self.push_remote()
+
+    def commit_and_sync(self,
+                        msg: str = "commit notes",
+                        commit: bool = True,
+                        push: bool = True) -> None:
+        """
+        Commit and sync
+        """
+        if (git := self._detect_git_repo(self.vault)):
+            if commit:
+                git.commit_on_change(msg)
+            if push:
+                git.push()
 
     def _detect_git_repo(self, path: Path) -> Git | None:
         """
