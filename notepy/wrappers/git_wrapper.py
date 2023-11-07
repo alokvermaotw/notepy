@@ -323,14 +323,15 @@ class GitMixin:
         if (git := self._detect_git_repo(self.vault)):
             git.pull()
 
-    def sync(self) -> None:
+    def sync(self: GitMixinProtocol) -> None:
         """
         Synchronize with remote origin.
         """
-        self.pull_remote()
-        self.push_remote()
+        if (git := self._detect_git_repo(self.vault)):
+            git.pull()
+            git.push()
 
-    def commit_and_sync(self,
+    def commit_and_sync(self: GitMixinProtocol,
                         msg: str = "commit notes",
                         commit: bool = True,
                         push: bool = True) -> None:
