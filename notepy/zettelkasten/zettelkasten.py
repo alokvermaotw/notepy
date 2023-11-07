@@ -498,8 +498,25 @@ class Zettelkasten(GitMixin):
         if not self.scratchpad.exists() or not self.scratchpad.is_dir():
             raise ScratchpadError("Scratchpad does not exist.")
 
+    def get_last(self) -> int:
+        """
+        Get ID of the last note as saved in .last.
+
+        :return: ID saved in .last
+        """
+
+        if not self.last.is_file():
+            raise ZettelkastenException(".last file not found")
 
         try:
+            last_content = int(self.last
+                               .read_text()
+                               .strip()
+                               .removesuffix(".md"))
+        except TypeError:
+            raise ZettelkastenException(".last file is malformatted.")
+
+        return last_content
 
 
 class ZettelkastenException(Exception):
