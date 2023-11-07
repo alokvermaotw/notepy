@@ -99,7 +99,7 @@ class Note(BaseNote):
         """
         metadata = cls._generate_metadata(title, author)
         frontmatter = cls._generate_frontmatter(metadata)
-        body = f"# {title}"
+        body = f"# {title}\n\n# References"
         zk = cls(**metadata,
                  links=[],
                  frontmatter=frontmatter,
@@ -185,7 +185,7 @@ class Note(BaseNote):
         """
 
         frontmatter_metadata = copy(metadata)
-        frontmatter_metadata['tags'] = ", ".join(frontmatter_metadata['tags'])
+        frontmatter_metadata['tags'] = " ".join(frontmatter_metadata['tags'])
         frontmatter_metadata['date'] = (frontmatter_metadata['date']
                                         .strftime("%Y-%m-%dT%H:%M:%S"))
         yml_header = '\n'.join(
