@@ -41,6 +41,7 @@ class Zettelkasten(GitMixin):
         self.scratchpad = self.vault / "scratchpad"
         self.dbmanager = DBManager(self.index)
         self.git = self._detect_git_repo(self.vault)
+        self.tmp = self.vault / ".tmp"
         self.header_obj = [note_field.name
                            for note_field in fields(self.note_obj)
                            if note_field.name not in ['links', 'frontmatter', 'body']]
@@ -78,7 +79,6 @@ class Zettelkasten(GitMixin):
             raise ZettelkastenException(f"'{path}' has already been initialized!"
                                         "use 'force=True' to force re-initialization")
 
-
         # create vault
         path.mkdir(exist_ok=True)
 
@@ -93,6 +93,10 @@ class Zettelkasten(GitMixin):
         # create scratchpad
         scratchpad = path / 'scratchpad'
         scratchpad.mkdir(exist_ok=True)
+
+        # create tmp dir
+        tmp = path / '.tmp'
+        tmp.mkdir(exist_ok=True)
 
         # create git repo
         if git_init:
@@ -112,7 +116,9 @@ class Zettelkasten(GitMixin):
             'link_del': link_del,
             'special_values': special_values
         }
+
         return cls(**zk_args)
+
 
     @staticmethod
     def is_zettelkasten(path: str | Path) -> bool:
@@ -128,6 +134,7 @@ class Zettelkasten(GitMixin):
         is_zettelkasten *= (path / ".index.db").is_file()
         is_zettelkasten *= (path / "scratchpad").is_dir()
         is_zettelkasten *= (path / ".last").is_file()
+        is_zettelkasten *= (path / ".tmp").is_dir()
 
         return bool(is_zettelkasten)
 
@@ -155,12 +162,12 @@ class Zettelkasten(GitMixin):
                  return None. Else the note.
         """
 
-        # check if scratchpad exists. We are going to create the temporary
-        # note inside the scratchpad so that its creation is not
-        # detected by git, since by default scratchpad is in .gitignore
-        self.scratchpad.mkdir(exist_ok=True)
+        # check if tmp dir exists. We are going to create the temporary
+        # note inside the .tmp so that its creation is not
+        # detected by git, since by default .tmp is in .gitignore
+        self.tmp.mkdir(exist_ok=True)
 
-        with NamedTemporaryFile("w", dir=self.scratchpad, suffix=".md") as f:
+        with NamedTemporaryFile("w", dir=self.tmp, suffix=".md") as f:
             # write the note in the temporary file
             f.write(note.materialize())
             f.seek(0)
@@ -488,16 +495,11 @@ class Zettelkasten(GitMixin):
         return commit
 
     def _check_scratchpad_exists(self) -> None:
-
         if not self.scratchpad.exists() or not self.scratchpad.is_dir():
             raise ScratchpadError("Scratchpad does not exist.")
 
-    def _detect_git_repo(self) -> Git | None:
+
         try:
-            git = Git(self.vault)
-            return git
-        except GitException:
-            return None
 
 
 class ZettelkastenException(Exception):
