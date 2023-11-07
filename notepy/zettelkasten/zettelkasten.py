@@ -1,25 +1,24 @@
 from __future__ import annotations
 from dataclasses import dataclass, fields
 from pathlib import Path
-from typing import Optional, Any
+from typing import Any
 from collections.abc import Sequence, MutableMapping, Collection
 from tempfile import NamedTemporaryFile
 import subprocess
 from glob import glob1
 from multiprocessing import Pool
 from notepy.zettelkasten.notes import Note
-from notepy.wrappers.git_wrapper import Git, GitException
+from notepy.wrappers.git_wrapper import Git, GitMixin
 from notepy.zettelkasten.sql import DBManager
 
 
 # TODO: implement an abstract class for this.
 @dataclass
-class Zettelkasten:
+class Zettelkasten(GitMixin):
     """
     Zettelkasten manager object. Manages notes, database and repo.
 
     :param vault: the path to the vault (dir containing the data).
-    :param git: whether the vault is a git repo.
     :param note_obj: the type of note you're going to use.
     :param delimiter: the delimiter of the frontmatter section.
                       Defaults to '---'
@@ -29,7 +28,6 @@ class Zettelkasten:
                            that require special parsing.
     """
     vault: Path
-    git: Optional[Git] = None
     note_obj: type[Note] = Note
     delimiter: str = "---"
     header: str = "# "
@@ -42,7 +40,7 @@ class Zettelkasten:
         self.last = self.vault / ".last"
         self.scratchpad = self.vault / "scratchpad"
         self.dbmanager = DBManager(self.index)
-        self.git = self._detect_git_repo()
+        self.git = self._detect_git_repo(self.vault)
         self.header_obj = [note_field.name
                            for note_field in fields(self.note_obj)
                            if note_field.name not in ['links', 'frontmatter', 'body']]
@@ -55,6 +53,7 @@ class Zettelkasten:
     def initialize(cls,
                    path: str | Path,
                    git_init: bool = False,
+                   git_origin: str = "",
                    note_obj: type[Note] = Note,
                    delimiter: str = "---",
                    header: str = "# ",
@@ -79,11 +78,9 @@ class Zettelkasten:
             raise ZettelkastenException(f"'{path}' has already been initialized!"
                                         "use 'force=True' to force re-initialization")
 
-        zk_args: MutableMapping[str, Any] = {}
 
         # create vault
         path.mkdir(exist_ok=True)
-        zk_args['vault'] = path
 
         # create .last file
         last = path / ".last"
@@ -99,12 +96,22 @@ class Zettelkasten:
 
         # create git repo
         if git_init:
-            to_ignore = ['.last', '.index.db', 'scratchpad']
+            to_ignore = ['.last', '.tmp']
             git_path = path / ".git"
             git = Git(path) if git_path.exists() else Git.init(path, to_ignore=to_ignore)
+            # add origin if provided
+            if git_origin:
+                git.origin = git_origin
             git.save()
-            zk_args['git'] = git
 
+        zk_args: MutableMapping[str, Any] = {
+            'vault': path,
+            'note_obj': note_obj,
+            'delimiter': delimiter,
+            'header': header,
+            'link_del': link_del,
+            'special_values': special_values
+        }
         return cls(**zk_args)
 
     @staticmethod
