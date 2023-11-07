@@ -4,6 +4,8 @@ from shlex import split
 from pathlib import Path
 
 
+# TODO: add possibility to run in background (or use threads)
+# one problem arising is that pushing to git remote takes time.
 def run_and_handle(command: str,
                    exception: type[Exception],
                    cwd: Path | str = ".",

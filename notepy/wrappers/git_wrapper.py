@@ -4,9 +4,10 @@ Small git wrapper to init, check status, add, commit and pull
 
 from __future__ import annotations
 import subprocess
-from typing import Optional, Any
+from typing import Optional, Any, Protocol
 from pathlib import Path
 from notepy.wrappers.base_wrapper import BaseWrapper, WrapperException, run_and_handle
+from shutil import rmtree
 
 
 # TODO: implement branch management?
@@ -236,6 +237,78 @@ class Git(BaseWrapper):
         string += f"{self.status}"
 
         return string
+
+
+class GitMixinProtocol(Protocol):
+    """
+    Protocol class for type-checker
+    """
+    @property
+    def vault(self) -> Path: ...
+
+    def _detect_git_repo(self, path: Path) -> Git | None: ...
+
+
+# from: https://stackoverflow.com/questions/51930339/how-do-i-correctly-add-type-hints-to-mixin-classes,
+# second answer.
+class GitMixin:
+    """
+    Mixin for git support.
+    Assumes that class that inherits
+    has a path attribute.
+    """
+
+    def git_init(self: GitMixinProtocol,
+                 to_ignore: list[str] = ['.last', '.tmp']) -> Git:
+        """
+        Initialize git repo
+
+        :param to_ignore: list of names to add to .gitignore
+        :return: Git object
+        """
+        git = Git.init(self.vault, to_ignore=to_ignore)
+
+        return git
+
+    def git_remove(self: GitMixinProtocol) -> None:
+        """
+        Remove repository.
+        """
+        if self._detect_git_repo(self.vault):
+            git_path: Path = self.vault / ".git"
+            gitignore_path: Path = self.vault / ".gitignore"
+            gitignore_path.unlink(missing_ok=True)
+            rmtree(str(git_path))
+        else:
+            raise GitException(f"'{self.vault}' is not a git repository.")
+
+    def set_origin(self: GitMixinProtocol, origin: str) -> None:
+        """
+        Add remote origin to a git repo.
+
+        :param origin: URL of the remote.
+        """
+        if (git := self._detect_git_repo(self.vault)):
+            git.origin = origin
+
+    def remove_origin(self: GitMixinProtocol) -> None:
+        """
+        Delete remote origin from a git repo.
+        """
+        if (git := self._detect_git_repo(self.vault)):
+            del git.origin
+
+    def _detect_git_repo(self, path: Path) -> Git | None:
+        """
+        Detect if a directory is also a git repo.
+
+        :return: Git object
+        """
+        try:
+            git = Git(path)
+            return git
+        except GitException:
+            return None
 
 
 # TODO: more granular exceptions?
