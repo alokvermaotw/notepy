@@ -7,11 +7,8 @@ with open(Path(__file__).parent / "cli/cli_config.json") as f:
     _COMMANDS = json.load(f)
 
 
-def extract_command(parser, command):
-    command_flags = _COMMANDS[command]
-    for flag in command_flags:
-        parser.add_argument(flag, **command_flags[flag])
-
+def initialize(args):
+    print("These are the args for initialize: path = ", args.path)
 
 def create_subparsers(global_parser, configuration, **kwargs):
     commands = [comm for comm in configuration if not comm.startswith("--")]
@@ -35,4 +32,4 @@ global_parser = ArgumentParser(prog='notepy',
 create_subparsers(global_parser, _COMMANDS, title="Commands", description="Command to interact with your vault")
 
 args = global_parser.parse_args()
-print(args.path)
+print(args)

@@ -1,0 +1,21 @@
+{
+  "initialize": {
+    "help": "Initialize the vault",
+    "flags": {
+      "--path": {
+        "default": ".",
+        "help": "Set the vault path."
+      }
+    }
+  },
+  "new": {},
+  "open": {},
+  "delete": {},
+  "print": {},
+  "commit": {},
+  "sync": {},
+  "list_notes": {},
+  "list_scrachpad": {},
+  "import_from_scratchpad": {},
+  "reindex_vault": {}
+}
