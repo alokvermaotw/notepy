@@ -8,7 +8,7 @@ from pathlib import Path
 # import tomllib
 
 
-class CliMixin:
+class SubcommandsMixin:
     @staticmethod
     def initialize(args: Namespace) -> None:
         try:
@@ -28,7 +28,7 @@ class CliMixin:
     @staticmethod
     def new(args: Namespace) -> None:
         try:
-            my_zk = CliMixin._create_zettelkasten(args)
+            my_zk = SubcommandsMixin._create_zettelkasten(args)
             my_zk.new(args.title[0],
                       author=args.author[0],
                       confirmation=args.no_confirmation)
@@ -42,7 +42,7 @@ class CliMixin:
     @staticmethod
     def edit(args: Namespace) -> None:
         try:
-            my_zk = CliMixin._create_zettelkasten(args)
+            my_zk = SubcommandsMixin._create_zettelkasten(args)
             my_zk.update(args.zk_id[0],
                          confirmation=args.no_confirmation)
         except zk.ZettelkastenException as e:
@@ -53,7 +53,7 @@ class CliMixin:
     @staticmethod
     def delete(args: Namespace) -> None:
         try:
-            my_zk = CliMixin._create_zettelkasten(args)
+            my_zk = SubcommandsMixin._create_zettelkasten(args)
             my_zk.delete(args.zk_id[0],
                          confirmation=args.no_confirmation)
         except zk.ZettelkastenException as e:
@@ -64,7 +64,7 @@ class CliMixin:
     @staticmethod
     def print(args: Namespace) -> None:
         try:
-            my_zk = CliMixin._create_zettelkasten(args)
+            my_zk = SubcommandsMixin._create_zettelkasten(args)
             my_zk.print_note(args.zk_id[0])
         except zk.ZettelkastenException as e:
             print(e)
@@ -74,7 +74,7 @@ class CliMixin:
     @staticmethod
     def list(args: Namespace) -> None:
         try:
-            my_zk = CliMixin._create_zettelkasten(args)
+            my_zk = SubcommandsMixin._create_zettelkasten(args)
             results = my_zk.list_notes()
             for id, title in results:
                 print(f"{title} (ID: {id})")
@@ -86,7 +86,7 @@ class CliMixin:
     @staticmethod
     def reindex(args: Namespace) -> None:
         try:
-            my_zk = CliMixin._create_zettelkasten(args)
+            my_zk = SubcommandsMixin._create_zettelkasten(args)
             if args.no_multi_core:
                 my_zk.multiprocess_index_vault()
             else:
@@ -113,7 +113,7 @@ class CliMixin:
 
 
 @dataclass
-class Cli(CliMixin):
+class Cli(SubcommandsMixin):
     prog: str
     description: str
     command_initialize: dict[str, Any]
