@@ -31,7 +31,6 @@ class CliMixin:
             my_zk = CliMixin._create_zettelkasten(args)
             my_zk.new(args.title[0],
                       author=args.author[0],
-                      to_scratchpad=args.to_scratchpad,
                       confirmation=args.no_confirmation)
         except zk.TitleClashError as e:
             print(e)

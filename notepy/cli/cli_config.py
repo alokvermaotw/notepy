@@ -29,10 +29,6 @@ _COMMANDS = {
                 "nargs": 1,
                 "type": str
             },
-            "--to_scratchpad": {
-                "help": "Whether to store the new note in the scratchpad.",
-                "action": "store_true"
-            },
             "--no-confirmation": {
                 "help": "Whether to ask for confirmation before saving.",
                 "action": "store_false"

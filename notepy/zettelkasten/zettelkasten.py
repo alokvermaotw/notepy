@@ -41,7 +41,6 @@ class Zettelkasten(GitMixin):
         self.vault = Path(self.vault).expanduser()
         self.index = self.vault / ".index.db"
         self.last = self.vault / ".last"
-        self.scratchpad = self.vault / "scratchpad"
         self.dbmanager = DBManager(self.index)
         self.git = self._detect_git_repo(self.vault)
         self.tmp = self.vault / ".tmp"
@@ -97,10 +96,6 @@ class Zettelkasten(GitMixin):
         index = path / ".index.db"
         DBManager(index).create_tables()
 
-        # create scratchpad
-        scratchpad = path / 'scratchpad'
-        scratchpad.mkdir(exist_ok=True)
-
         # create tmp dir
         tmp = path / '.tmp'
         tmp.mkdir(exist_ok=True)
@@ -145,7 +140,6 @@ class Zettelkasten(GitMixin):
         is_zettelkasten = int(True)
         is_zettelkasten *= path.is_dir()
         is_zettelkasten *= (path / ".index.db").is_file()
-        is_zettelkasten *= (path / "scratchpad").is_dir()
         is_zettelkasten *= (path / ".last").is_file()
         is_zettelkasten *= (path / ".tmp").is_dir()
 
@@ -166,7 +160,7 @@ class Zettelkasten(GitMixin):
                              confirmation: bool = False) -> Note | None:
         """
         Edit a note in a temporary file. The temporary file is created
-        in the scratchpad so not to interfere with git. The temporary
+        in the tmp so not to interfere with git. The temporary
         file is automatically deleted.
 
         :param note: the note to edit.
@@ -211,14 +205,12 @@ class Zettelkasten(GitMixin):
     def new(self,
             title: str,
             author: Optional[str] = None,
-            to_scratchpad: bool = False,
             confirmation: bool = False) -> None:
         """
         Create a new note and add it to the vault.
 
         :param title: title of the note.
         :param author: author of the note.
-        :param to_scratchpad: whether the note should go to the scratchpad.
         :param confirmation: whether to ask for confirmation to save the note.
         """
         # check title is unique
@@ -236,15 +228,10 @@ class Zettelkasten(GitMixin):
         if new_note is None:
             return None
 
-        self.scratchpad.mkdir(exist_ok=True)
         filename = Path(str(new_note.zk_id)).with_suffix(".md")
 
-        if to_scratchpad:
-            note_path = self.scratchpad / filename
-        else:
-            note_path = self.vault / filename
-            # if not in scratchpad, add the metadata to the database
-            self.dbmanager.add_to_index(new_note)
+        note_path = self.vault / filename
+        self.dbmanager.add_to_index(new_note)
 
         # save the new note
         with open(note_path, "w") as f:
@@ -442,73 +429,6 @@ class Zettelkasten(GitMixin):
                              commit=self.autocommit,
                              push=self.autosync)
 
-    def import_from_scratchpad(self,
-                               zk_id: int,
-                               confirmation: bool = False) -> None:
-        """
-        Move a note from the scratchpad to the main vault.
-        This will add the note metadata to the database.
-
-        :param zk_id: ID of the note.
-        :param confirmation: whether to ask for confirmation. If True, and
-                             confirmation is no, the note will not be moved.
-        """
-        # check the ID is unique
-        if self._note_exists(zk_id):
-            raise ZettelkastenException(f"Note '{zk_id}' already exists.")
-
-        # check scratchpad exists
-        self._check_scratchpad_exists()
-
-        filename = Path(str(zk_id)).with_suffix(".md")
-        note_path = self.scratchpad / filename
-        note = self.note_obj.read(path=note_path,
-                                  parsing_obj=self.header_obj,
-                                  delimiter=self.delimiter,
-                                  special_names=self.special_values,
-                                  header=self.header,
-                                  link_del=self.link_del)
-
-        # check title is unique
-        self._check_unique_title(note.title)
-
-        # ask for confirmation
-        msg = "Move from scratchpad?"
-        if confirmation and not self._ask_for_confirmation(msg):
-            return None
-
-        # save the new note
-        with open(self.vault / filename, "w") as f:
-            f.write(note.materialize())
-
-        # remove from scratchpad
-        note_path.unlink(missing_ok=True)
-
-        # update the index
-        self.dbmanager.add_to_index(note)
-
-        # update .last file
-        self._add_last_opened(filename)
-
-        # add and commit
-        self.commit_and_sync(msg=f'Moved "{note.zk_id}" from scratchpad',
-                             commit=self.autocommit,
-                             push=self.autosync)
-
-    def list_scratchpad(self) -> list[int]:
-        """
-        List the note IDs of the notes contained in the scratchpad.
-
-        :return: list of zk_id of the notes in the scratchpad.
-        """
-        # check scratchpad exists
-        self._check_scratchpad_exists()
-
-        notes: list[str] = glob1(str(self.scratchpad), "*.md")
-        scratchpad_ids = [int(note.removesuffix(".md")) for note in notes]
-
-        return scratchpad_ids
-
     def _ask_for_confirmation(self, msg: str = "Save note?") -> bool:
         response = input(f"{msg} [Y/n]: ")
         commit = True
@@ -516,10 +436,6 @@ class Zettelkasten(GitMixin):
             commit = False
 
         return commit
-
-    def _check_scratchpad_exists(self) -> None:
-        if not self.scratchpad.exists() or not self.scratchpad.is_dir():
-            raise ScratchpadError("Scratchpad does not exist.")
 
     def get_last(self) -> int:
         """
@@ -555,8 +471,4 @@ class TitleClashError(ZettelkastenException):
 
 
 class VaultError(ZettelkastenException):
-    pass
-
-
-class ScratchpadError(ZettelkastenException):
     pass
