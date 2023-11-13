@@ -5,7 +5,6 @@ from dataclasses import dataclass, fields
 from argparse import ArgumentParser, Namespace
 from notepy.zettelkasten.zettelkasten import Zettelkasten
 from notepy.zettelkasten import zettelkasten as zk
-from pathlib import Path
 # import tomllib
 
 
@@ -66,7 +65,7 @@ class SubcommandsMixin:
     def print(args: Namespace) -> None:
         try:
             my_zk = SubcommandsMixin._create_zettelkasten(args)
-            my_zk.print_note(args.zk_id[0])
+            print(my_zk.print_note(args.zk_id[0]))
         except zk.ZettelkastenException as e:
             print(e)
         except:
@@ -195,7 +194,8 @@ class Cli(SubcommandsMixin):
 
     def run(self, *args, **kwargs) -> None:
         cli_args = self.parse(*args, **kwargs)
-        cli_args.func(cli_args)
+        if hasattr(cli_args, 'func'):
+            cli_args.func(cli_args)
 
     def __call__(self, *args, **kwargs) -> None:
         cli_args = self.parse(*args, **kwargs)

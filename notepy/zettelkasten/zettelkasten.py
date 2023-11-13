@@ -145,6 +145,12 @@ class Zettelkasten(GitMixin):
 
         return bool(is_zettelkasten)
 
+    def _check_zettelkasten(self) -> None:
+        """
+        Raise an exception if vault is not a zettelkasten
+        """
+        if not self.is_zettelkasten(self.vault):
+            raise ZettelkastenException(f"'{self.vault}' must be initialized first.")
     def _add_last_opened(self, name: str | Path) -> None:
         """
         Add the last opened note to .last file
@@ -213,6 +219,8 @@ class Zettelkasten(GitMixin):
         :param author: author of the note.
         :param confirmation: whether to ask for confirmation to save the note.
         """
+        # check if vault is a zettelkasten
+        self._check_zettelkasten()
         # check title is unique
         self._check_unique_title(title)
 
@@ -253,6 +261,8 @@ class Zettelkasten(GitMixin):
         :param confirmation: whether to ask for confirmation to save the note.
         """
 
+        # check if vault is a zettelkasten
+        self._check_zettelkasten()
         # check that the note exists
         if not self._note_exists(zk_id):
             raise ZettelkastenException(f"Note '{zk_id}' does not exist.")
@@ -303,6 +313,8 @@ class Zettelkasten(GitMixin):
         :param confirmation: whether to ask for confirmation to save the note.
         """
 
+        # check if vault is a zettelkasten
+        self._check_zettelkasten()
         # check that the note exists
         if not self._note_exists(zk_id):
             raise ZettelkastenException(f"Note '{zk_id}' does not exist.")
@@ -328,6 +340,8 @@ class Zettelkasten(GitMixin):
                              push=self.autosync)
 
     def list_notes(self) -> Sequence[tuple[int, str]]:
+        # check if vault is a zettelkasten
+        self._check_zettelkasten()
         results = self.dbmanager.list()
 
         return results
@@ -345,6 +359,8 @@ class Zettelkasten(GitMixin):
         :param zk_id: ID of the note.
         :return: content of the note.
         """
+        # check if vault is a zettelkasten
+        self._check_zettelkasten()
         # check that the note exists
         if not self._note_exists(zk_id):
             raise ZettelkastenException(f"Note '{zk_id}' does not exist.")
@@ -367,6 +383,8 @@ class Zettelkasten(GitMixin):
         Reindex the zettelkasten vault from scratch.
         Single threaded function.
         """
+        # check if vault is a zettelkasten
+        self._check_zettelkasten()
         notes_paths: list[str] = glob1(str(self.vault), "*.md")
         # drop the tables
         self.dbmanager.drop_tables()
@@ -412,6 +430,8 @@ class Zettelkasten(GitMixin):
         Reindex the zettelkasten vault from scratch.
         Multiple cores function.
         """
+        # check if vault is a zettelkasten
+        self._check_zettelkasten()
         notes_paths: list[str] = glob1(str(self.vault), "*.md")
         # drop the tables
         self.dbmanager.drop_tables()
@@ -444,6 +464,8 @@ class Zettelkasten(GitMixin):
         :return: ID saved in .last
         """
 
+        # check if vault is a zettelkasten
+        self._check_zettelkasten()
         if not self.last.is_file():
             raise ZettelkastenException(".last file not found")
 

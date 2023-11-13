@@ -290,8 +290,8 @@ class GitMixin:
         """
         if (git := self._detect_git_repo(self.vault)):
             return git.origin
-        else:
-            return None
+
+        return None
 
     def set_remote(self: GitMixinProtocol, origin: str) -> None:
         """
