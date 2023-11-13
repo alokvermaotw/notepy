@@ -1,5 +1,5 @@
 {
-  "initialize": {
+  "command_initialize": {
     "help": "Initialize the vault",
     "flags": {
       "--path": {
@@ -8,14 +8,23 @@
       }
     }
   },
-  "new": {},
-  "open": {},
-  "delete": {},
-  "print": {},
-  "commit": {},
-  "sync": {},
-  "list_notes": {},
-  "list_scrachpad": {},
-  "import_from_scratchpad": {},
-  "reindex_vault": {}
+  "command_new": {},
+  "command_open": {},
+  "command_delete": {},
+  "command_print": {},
+  "command_commit": {},
+  "command_sync": {},
+  "command_list_notes": {},
+  "command_list_scrachpad": {},
+  "command_import_from_scratchpad": {},
+  "command_reindex_vault": {},
+  "flag_vault": {},
+  "flag_author": {},
+  "flag_note_obj": {},
+  "flag_delimiter": {},
+  "flag_header": {},
+  "flag_link_del": {},
+  "flag_special_values": {},
+  "flag_autocommit": {},
+  "flag_autosync": {}
 }

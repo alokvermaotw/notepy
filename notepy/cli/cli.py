@@ -1,6 +1,7 @@
 from __future__ import annotations
 from typing import Any
-from dataclasses import dataclass, field, fields
+from collections.abc import Collection
+from dataclasses import dataclass, fields
 from argparse import ArgumentParser
 from notepy.zettelkasten.zettelkasten import Zettelkasten, Note
 from pathlib import Path
@@ -9,8 +10,8 @@ from pathlib import Path
 
 @dataclass
 class Cli:
-    zk: Zettelkasten
-    note_obj: type[Note] = Note
+    prog: str
+    description: str
     command_initialize: dict[str, Any]
     command_new: dict[str, Any]
     command_open: dict[str, Any]
@@ -22,21 +23,56 @@ class Cli:
     command_list_scrachpad: dict[str, Any]
     command_import_from_scratchpad: dict[str, Any]
     command_reindex_vault: dict[str, Any]
+    flag_vault: Path
+    flag_author: str
+    flag_note_obj: type[Note] = Note
+    flag_delimiter: str = "---"
+    flag_header: str = "# "
+    flag_link_del: tuple[str, str] = ('[[', ']]')
+    flag_special_values: Collection[str] = ('date', 'tags', 'zk_id')
+    flag_autocommit: bool = True
+    flag_autosync: bool = False
 
-    def initialize(cls, path: Path) -> Cli:
+    def __post_init__(self):
+        self.global_parser = ArgumentParser(prog=self.prog,
+                                            description=self.description)
+        commands, flags = self._get_commands()
+
+        if flags:
+            for flag in flags:
+                flag_config = getattr(self, "flag_"+flag)
+                self.global_parser.add_argument("--"+flag,
+                                                **flag_config)
+
+        if commands:
+            self.subparsers = self.global_parser.add_subparsers()
+            for command in commands:
+                self._create_subparsers(command)
         ...
-
-    def _get_zk_method(self, command: str):
-        zk_method = command.removeprefix("command_")
-        # if not hasattr(zk_method, )
 
     def _get_commands(self) -> tuple[list[str], list[str]]:
         commands: list[str] = []
         flags: list[str] = []
         for comm in fields(self):
-            if comm.startswith("command_"):
+            if comm.name.startswith("command_"):
                 commands.append(comm.name.removeprefix("command_"))
-            elif comm.startswith("flag_"):
+            elif comm.name.startswith("flag_"):
                 flags.append(comm.name.removeprefix("flag_"))
 
         return commands, flags
+
+    def _create_subparsers(self, command):
+        command_config = getattr(self, "command_"+command)
+        parser = self.subparsers.add_parser(command,
+                                            help=command_config.get("help", ""))
+        subflags = command_config.get('flags', {})
+        for flag in subflags:
+            parser.add_argument(flag, **subflags[flag])
+
+        # parser.set_defaults(func=)
+
+    def parse(self, *args, **kwargs):
+        self.global_parser.parse_args()
+
+    def __call__(self, *args, **kwargs):
+        self.parse(**args, **kwargs)
