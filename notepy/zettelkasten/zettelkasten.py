@@ -29,13 +29,13 @@ class Zettelkasten(GitMixin):
     """
     vault: Path
     author: str
+    autocommit: bool = True
+    autosync: bool = False
     note_obj: type[Note] = Note
     delimiter: str = "---"
     header: str = "# "
     link_del: tuple[str, str] = ('[[', ']]')
     special_values: Collection[str] = ('date', 'tags', 'zk_id')
-    autocommit: bool = True
-    autosync: bool = False
 
     def __post_init__(self) -> None:
         self.vault = Path(self.vault).expanduser()
@@ -56,16 +56,18 @@ class Zettelkasten(GitMixin):
     @classmethod
     def initialize(cls,
                    path: str | Path,
+                   author: str,
                    git_init: bool = False,
                    git_origin: str = "",
+                   autocommit: bool = False,
+                   autosync: bool = False,
+                   force: bool = False,
                    note_obj: type[Note] = Note,
                    delimiter: str = "---",
                    header: str = "# ",
                    link_del: tuple[str, str] = ('[[', ']]'),
                    special_values: tuple[str, str] = ('date', 'tags'),
-                   autocommit: bool = False,
-                   autosync: bool = False,
-                   force: bool = False) -> Zettelkasten:
+                   ) -> Zettelkasten:
         """
         Initialize a new vault. A vault is made of a collection of
         notes, an sqlite database (.index.db), and an optional
@@ -81,8 +83,8 @@ class Zettelkasten(GitMixin):
 
         # check if a zettelkasten has been already initialized
         if cls.is_zettelkasten(path) and not force:
-            raise ZettelkastenException(f"'{path}' has already been initialized!"
-                                        "use 'force=True' to force re-initialization")
+            raise ZettelkastenException(f"'{path}' has already been initialized! "
+                                        "Use 'force=True' to force re-initialization")
 
         # create vault
         path.mkdir(exist_ok=True)
@@ -118,6 +120,7 @@ class Zettelkasten(GitMixin):
 
         zk_args: MutableMapping[str, Any] = {
             'vault': path,
+            'author': author,
             'note_obj': note_obj,
             'delimiter': delimiter,
             'header': header,
