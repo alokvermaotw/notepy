@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Any
+from typing import Any, Protocol
 from collections.abc import MutableMapping
 from dataclasses import dataclass, fields
 from argparse import ArgumentParser, Namespace
@@ -7,6 +7,11 @@ from notepy.zettelkasten.zettelkasten import Zettelkasten
 from notepy.zettelkasten import zettelkasten as zk
 from enum import Enum
 # import tomllib
+
+
+class Show(Protocol):
+    def __str__(self) -> str:
+        ...
 
 
 class Colors(Enum):
@@ -29,7 +34,7 @@ class Colors(Enum):
     RESET = "\033[0m"
 
 
-def color(text: str, COLOUR: str, context: str = "FG") -> str:
+def color(text: Show, COLOUR: str, context: str = "FG") -> str:
     if context not in ["FG", "BG"]:
         raise ValueError("context can only be 'FG' or 'BG'.")
     return (f"{getattr(Colors, COLOUR+'_'+context).value}"
