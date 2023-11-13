@@ -4,5 +4,3 @@ from notepy.cli.cli_config import _COMMANDS
 
 cli = Cli(prog="notepy", description="Zettelkasten manager", **_COMMANDS)
 cli.run()
-
-# print(cli.args)

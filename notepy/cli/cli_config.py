@@ -1,7 +1,8 @@
 from pathlib import Path
+from collections.abc import MutableMapping
 
 
-_COMMANDS = {
+_COMMANDS: MutableMapping = {
     "command_initialize": {
         "help": "Initialize the vault.",
         "flags": {
@@ -10,7 +11,7 @@ _COMMANDS = {
                 "action": "store_true"
             },
             "--git_origin": {
-                "default": "",
+                "default": [""],
                 "help": "Remote origin for git repository.",
                 "nargs": 1,
                 "type": str
@@ -91,7 +92,7 @@ _COMMANDS = {
         "help": "Location of the vault."
     },
     "flag_author": {
-        "default": "",
+        "default": [""],
         "type": str,
         "nargs": 1,
         "help": "Author name."
