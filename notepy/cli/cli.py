@@ -5,7 +5,36 @@ from dataclasses import dataclass, fields
 from argparse import ArgumentParser, Namespace
 from notepy.zettelkasten.zettelkasten import Zettelkasten
 from notepy.zettelkasten import zettelkasten as zk
+from enum import Enum
 # import tomllib
+
+
+class Colors(Enum):
+    BLACK_FG = "\033[30m"
+    RED_FG = "\033[31m"
+    GREEN_FG = "\033[32m"
+    YELLOW_FG = "\033[33m"
+    BLUE_FG = "\033[34m"
+    MAGENTA_FG = "\033[35m"
+    CYAN_FG = "\033[36m"
+    WHITE_FG = "\033[37m"
+    BLACK_BG = "\033[40m"
+    RED_BG = "\033[41m"
+    GREEN_BG = "\033[42m"
+    YELLOW_BG = "\033[43m"
+    BLUE_BG = "\033[44m"
+    MAGENTA_BG = "\033[45m"
+    CYAN_BG = "\033[46m"
+    WHITE_BG = "\033[47m"
+    RESET = "\033[0m"
+
+
+def color(text: str, COLOUR: str, context: str = "FG") -> str:
+    if context not in ["FG", "BG"]:
+        raise ValueError("context can only be 'FG' or 'BG'.")
+    return (f"{getattr(Colors, COLOUR+'_'+context).value}"
+            f"{text}"
+            f"{Colors.RESET.value}")
 
 
 class SubcommandsMixin:
@@ -77,7 +106,8 @@ class SubcommandsMixin:
             my_zk = SubcommandsMixin._create_zettelkasten(args)
             results = my_zk.list_notes()
             for id, title in results:
-                print(f"{title} (ID: {id})")
+                print(f"{color(title, 'CYAN')} "
+                      f"(ID: {color(id, 'YELLOW')})")
         except zk.ZettelkastenException as e:
             print(e)
         except:
