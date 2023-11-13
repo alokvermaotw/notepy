@@ -3,13 +3,12 @@ Define the main class that models a zettelkasten note.
 """
 
 from __future__ import annotations
-from copy import copy
 from abc import ABC, abstractmethod
 from datetime import datetime
-from dataclasses import dataclass
+from dataclasses import dataclass, fields
 from string import punctuation
 from pathlib import Path
-from collections.abc import Collection, MutableMapping
+from collections.abc import Collection
 from typing import Any
 from notepy.parser.parser import HeaderParser, BodyParser
 
@@ -26,9 +25,8 @@ class BaseNote(ABC):
         :return: a new note
         """
 
-    @staticmethod
     @abstractmethod
-    def _generate_frontmatter(metadata: dict[str, str]) -> str:
+    def generate_frontmatter(self) -> str:
         """
         Generates the frontmatter string of the
         zettelkasten note
@@ -85,7 +83,6 @@ class Note(BaseNote):
     zk_id: int
     tags: Collection[str]
     links: Collection[str]
-    frontmatter: str
     body: str
 
     @classmethod
@@ -98,11 +95,9 @@ class Note(BaseNote):
         :return: a new note
         """
         metadata = cls._generate_metadata(title, author)
-        frontmatter = cls._generate_frontmatter(metadata)
         body = f"# {title}\n\n# References"
         zk = cls(**metadata,
                  links=[],
-                 frontmatter=frontmatter,
                  body=body)
 
         return zk
@@ -143,11 +138,11 @@ class Note(BaseNote):
         if body_meta['header'][0].removeprefix(header).strip() != frontmatter_meta['title']:
             raise NoteException("First header and title must be the same.")
 
-        frontmatter = cls._generate_frontmatter(frontmatter_meta)
         links = body_meta['links']
         body = "\n".join(body_meta['body']).strip()
-        new_note = Note(links=links, frontmatter=frontmatter,
-                        body=body, **frontmatter_meta)
+        new_note = Note(links=links,
+                        body=body,
+                        **frontmatter_meta)
 
         return new_note
 
@@ -156,7 +151,7 @@ class Note(BaseNote):
         Return content of note
         """
 
-        note = self.frontmatter
+        note = self.generate_frontmatter()
         note += "\n\n\n"
         note += self.body
         note += "\n"
@@ -174,8 +169,7 @@ class Note(BaseNote):
 
         return slug
 
-    @staticmethod
-    def _generate_frontmatter(metadata: MutableMapping[str, Any]) -> str:
+    def generate_frontmatter(self) -> str:
         """
         Generates the frontmatter string of the
         zettelkasten note
@@ -184,7 +178,10 @@ class Note(BaseNote):
         :return: the frontmatter string
         """
 
-        frontmatter_metadata = copy(metadata)
+        frontmatter_names = [note_field.name
+                             for note_field in fields(Note)
+                             if note_field.name not in ['links', 'body']]
+        frontmatter_metadata = {name: getattr(self, name) for name in frontmatter_names}
         frontmatter_metadata['tags'] = " ".join(frontmatter_metadata['tags'])
         frontmatter_metadata['date'] = (frontmatter_metadata['date']
                                         .strftime("%Y-%m-%dT%H:%M:%S"))

@@ -99,6 +99,18 @@ class SubcommandsMixin:
             raise
 
     @staticmethod
+    def next(args: Namespace) -> None:
+        try:
+            my_zk = SubcommandsMixin._create_zettelkasten(args)
+            my_zk.next(args.title[0],
+                       args.zk_id[0],
+                       args.no_confirmation)
+        except zk.ZettelkastenException as e:
+            print(e)
+        except:
+            raise
+
+    @staticmethod
     def _create_zettelkasten(args: Namespace) -> Zettelkasten:
         my_zk = Zettelkasten(vault=args.vault,
                              author=args.author[0],
@@ -126,6 +138,7 @@ class Cli(SubcommandsMixin):
     command_print: MutableMapping[str, Any]
     command_list: MutableMapping[str, Any]
     command_reindex: MutableMapping[str, Any]
+    command_next: MutableMapping[str, Any]
     flag_vault: MutableMapping[str, Any]
     flag_author: MutableMapping[str, Any]
     flag_autocommit: MutableMapping[str, Any]

@@ -252,7 +252,7 @@ class BodyParser(BaseParser):
             line_links = self._link_parser(clean_line)
             links.extend(line_links)
 
-        return {'header': headers, 'links': links, 'body': body}, file_obj
+        return {'header': headers, 'links': set(links), 'body': body}, file_obj
 
     def _link_parser(self, line: str) -> Collection[str]:
         """

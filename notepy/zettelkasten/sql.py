@@ -20,7 +20,7 @@ _CREATE_MAIN_TABLE_STMT = """
 _CREATE_TAGS_TABLE_STMT = """
     CREATE TABLE IF NOT EXISTS tags(tag STRING NOT NULL,
     zk_id STRING NOT NULL,
-    PRIMARY KEY(tag, zk_id),
+    PRIMARY KEY(zk_id, tag),
     FOREIGN KEY(zk_id) REFERENCES zettelkasten(zk_id)
         ON UPDATE CASCADE
         ON DELETE CASCADE)
@@ -28,7 +28,7 @@ _CREATE_TAGS_TABLE_STMT = """
 _CREATE_LINKS_TABLE_STMT = """
     CREATE TABLE IF NOT EXISTS links(link STRING NOT NULL,
     zk_id STRING NOT NULL,
-    PRIMARY KEY(link, zk_id),
+    PRIMARY KEY(zk_id, link),
     FOREIGN KEY(zk_id) REFERENCES zettelkasten(zk_id)
         ON UPDATE CASCADE
         ON DELETE CASCADE)
@@ -49,7 +49,8 @@ _UPDATE_MAIN_STMT = """
     last_changed = ?
     WHERE zk_id = ?
 """
-_LIST_STMT = "SELECT zk_id, title from zettelkasten;"
+_LIST_STMT = "SELECT zk_id, title FROM zettelkasten;"
+_GET_LINKS_ID = "SELECT link FROM links WHERE zk_id = ?;"
 
 
 class DBManager:
@@ -147,6 +148,17 @@ class DBManager:
         """
         with sqlite3.connect(self.index) as conn:
             results = conn.execute(_LIST_STMT).fetchall()
+
+        return results
+
+    def get_links(self, zk_id: int) -> Sequence[str]:
+        """
+        Return all the links associated to an ID.
+
+        :param zk_id: the ID.
+        """
+        with sqlite3.connect(self.index) as conn:
+            results = conn.execute(_GET_LINKS_ID).fetchall()
 
         return results
 

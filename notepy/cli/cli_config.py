@@ -86,6 +86,26 @@ _COMMANDS: MutableMapping = {
             }
         }
     },
+    "command_next": {
+        "help": "Create new note continuing from last one.",
+        "flags": {
+            "title": {
+                "help": "Title of the new note.",
+                "nargs": 1,
+                "type": str
+            },
+            "--zk_id": {
+                "help": "ID of the note to continue from.",
+                "nargs": 1,
+                "type": int,
+                "default": [None]
+            },
+            "--no-confirmation": {
+                "help": "Whether to ask for confirmation.",
+                "action": "store_false"
+            }
+        }
+    },
     "flag_vault": {
         "default": ".",
         "type": Path,

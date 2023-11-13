@@ -7,6 +7,7 @@ from tempfile import NamedTemporaryFile
 import subprocess
 from glob import glob1
 from multiprocessing import Pool
+from copy import copy
 from notepy.zettelkasten.notes import Note
 from notepy.wrappers.git_wrapper import Git, GitMixin
 from notepy.zettelkasten.sql import DBManager
@@ -46,7 +47,7 @@ class Zettelkasten(GitMixin):
         self.tmp = self.vault / ".tmp"
         self.header_obj = [note_field.name
                            for note_field in fields(self.note_obj)
-                           if note_field.name not in ['links', 'frontmatter', 'body']]
+                           if note_field.name not in ['links', 'body']]
 
         if not self.vault.is_dir():
             raise VaultError(f"Vault '{self.vault}' is not a directory "
@@ -151,6 +152,7 @@ class Zettelkasten(GitMixin):
         """
         if not self.is_zettelkasten(self.vault):
             raise ZettelkastenException(f"'{self.vault}' must be initialized first.")
+
     def _add_last_opened(self, name: str | Path) -> None:
         """
         Add the last opened note to .last file
@@ -323,10 +325,8 @@ class Zettelkasten(GitMixin):
         note_path = self.vault / filename
 
         # ask for confirmation
-        if confirmation:
-            response = input("Delete note? [Y/n]: ")
-            if response.lower() in ['n', 'no', 'nope']:
-                return None
+        if confirmation and not self._ask_for_confirmation():
+            return None
 
         # remove from index
         self.dbmanager.delete_from_index(zk_id)
@@ -466,6 +466,7 @@ class Zettelkasten(GitMixin):
 
         # check if vault is a zettelkasten
         self._check_zettelkasten()
+
         if not self.last.is_file():
             raise ZettelkastenException(".last file not found")
 
@@ -478,6 +479,87 @@ class Zettelkasten(GitMixin):
             raise ZettelkastenException(".last file is malformatted.")
 
         return last_content
+
+    def next(self, title: str,
+             zk_id: Optional[int] = None,
+             confirmation: bool = False) -> None:
+        """
+        Create a new note that is the logical continuation
+        of the last note or of the ID provided.
+
+        :param zk_id: ID of the note to continue from.
+        :param confirmation: whether to ask for confirmation.
+        """
+        # check if vault is a zettelkasten
+        self._check_zettelkasten()
+        # check title is unique
+        self._check_unique_title(title)
+
+        # get ID of last note
+        if zk_id is None:
+            zk_id = self.get_last()
+
+        # check that the note exists
+        if not self._note_exists(zk_id):
+            raise ZettelkastenException(f"Note '{zk_id}' does not exist.")
+
+        # read the previous note
+        filename = Path(str(zk_id)).with_suffix(".md")
+        note_path = self.vault / filename
+        note = self.note_obj.read(path=note_path,
+                                  parsing_obj=self.header_obj,
+                                  delimiter=self.delimiter,
+                                  special_names=self.special_values,
+                                  header=self.header,
+                                  link_del=self.link_del)
+
+        # get links and other metadata
+        links = copy(note.links)
+        tags = copy(note.tags)
+        author = note.author
+
+        # new note
+        tmp_note = self.note_obj.new(title, author)
+        tmp_note.tags = tags
+
+        tmp_note.body += "\n"
+        tmp_note.body += "\n".join(["- "+f"[[{link}]]" for link in links])
+
+        # create new note
+        new_note = self._edit_temporary_note(tmp_note, confirmation)
+        if new_note is None:
+            return None
+
+        new_filename = Path(str(new_note.zk_id)).with_suffix(".md")
+
+        new_note_path = self.vault / new_filename
+        self.dbmanager.add_to_index(new_note)
+
+        # save the new note
+        with open(new_note_path, "w") as f:
+            f.write(new_note.materialize())
+
+        # add link to new note to the body of old note
+        note.body += "\n"
+        note.body += "- " + f"[[{new_note.sluggify()}]]"
+        note.links = list(note.links)
+        note.links.append(new_note.sluggify())
+
+        # save the modified note
+        with open(note_path, "w") as f:
+            f.write(note.materialize())
+
+        # add to index the modified old note
+        self.dbmanager.update_note_to_index(note)
+
+        # update .last file
+        self._add_last_opened(new_filename)
+
+        # add and commit
+        self.commit_and_sync(msg=f'Commit "{new_note.zk_id}" continuing '
+                                 f'from {note.zk_id}',
+                             commit=self.autocommit,
+                             push=self.autosync)
 
 
 class ZettelkastenException(Exception):
