@@ -9,6 +9,7 @@ from enum import Enum
 from notepy.zettelkasten.zettelkasten import Zettelkasten
 from notepy.zettelkasten import zettelkasten as zk
 from notepy.wrappers.base_wrapper import WrapperException
+from notepy.wrappers.editor_wrapper import EditorException
 # import tomllib
 
 
@@ -75,6 +76,8 @@ class SubcommandsMixin:
             print(e)
         except WrapperException as e:
             print(e)
+        except EditorException as e:
+            print(e)
 
     @staticmethod
     def edit(args: Namespace) -> None:
@@ -85,6 +88,8 @@ class SubcommandsMixin:
         except zk.ZettelkastenException as e:
             print(e)
         except WrapperException as e:
+            print(e)
+        except EditorException as e:
             print(e)
 
     @staticmethod
@@ -136,6 +141,10 @@ class SubcommandsMixin:
                        args.zk_id[0],
                        args.no_confirmation)
         except zk.ZettelkastenException as e:
+            print(e)
+        except WrapperException as e:
+            print(e)
+        except EditorException as e:
             print(e)
 
     @staticmethod
