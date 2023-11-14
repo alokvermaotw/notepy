@@ -1,11 +1,14 @@
 from __future__ import annotations
 from typing import Any, Protocol
 from collections.abc import MutableMapping
+
 from dataclasses import dataclass, fields
 from argparse import ArgumentParser, Namespace
+from enum import Enum
+
 from notepy.zettelkasten.zettelkasten import Zettelkasten
 from notepy.zettelkasten import zettelkasten as zk
-from enum import Enum
+from notepy.wrappers.base_wrapper import WrapperException
 # import tomllib
 
 
@@ -49,7 +52,7 @@ class SubcommandsMixin:
             my_zk = Zettelkasten.initialize(args.vault,
                                             args.author[0],
                                             args.git_init,
-                                            args.git_origin,
+                                            args.git_origin[0],
                                             autocommit=args.autocommit,
                                             autosync=args.autosync,
                                             force=args.force)
@@ -70,8 +73,8 @@ class SubcommandsMixin:
             print(e)
         except zk.ZettelkastenException as e:
             print(e)
-        except:
-            raise
+        except WrapperException as e:
+            print(e)
 
     @staticmethod
     def edit(args: Namespace) -> None:
@@ -81,8 +84,8 @@ class SubcommandsMixin:
                          confirmation=args.no_confirmation)
         except zk.ZettelkastenException as e:
             print(e)
-        except:
-            raise
+        except WrapperException as e:
+            print(e)
 
     @staticmethod
     def delete(args: Namespace) -> None:
@@ -92,8 +95,6 @@ class SubcommandsMixin:
                          confirmation=args.no_confirmation)
         except zk.ZettelkastenException as e:
             print(e)
-        except:
-            raise
 
     @staticmethod
     def print(args: Namespace) -> None:
@@ -102,8 +103,6 @@ class SubcommandsMixin:
             print(my_zk.print_note(args.zk_id[0]))
         except zk.ZettelkastenException as e:
             print(e)
-        except:
-            raise
 
     @staticmethod
     def list(args: Namespace) -> None:
@@ -115,8 +114,6 @@ class SubcommandsMixin:
                       f"(ID: {color(id, 'YELLOW')})")
         except zk.ZettelkastenException as e:
             print(e)
-        except:
-            raise
 
     @staticmethod
     def reindex(args: Namespace) -> None:
@@ -130,8 +127,6 @@ class SubcommandsMixin:
             print("Reindexing terminated successfully.")
         except zk.ZettelkastenException as e:
             print(e)
-        except:
-            raise
 
     @staticmethod
     def next(args: Namespace) -> None:
@@ -142,15 +137,14 @@ class SubcommandsMixin:
                        args.no_confirmation)
         except zk.ZettelkastenException as e:
             print(e)
-        except:
-            raise
 
     @staticmethod
     def _create_zettelkasten(args: Namespace) -> Zettelkasten:
         my_zk = Zettelkasten(vault=args.vault,
                              author=args.author[0],
                              autocommit=args.autocommit,
-                             autosync=args.autosync)
+                             autosync=args.autosync,
+                             editor=args.editor[0])
 
         return my_zk
 
@@ -178,6 +172,7 @@ class Cli(SubcommandsMixin):
     flag_author: MutableMapping[str, Any]
     flag_autocommit: MutableMapping[str, Any]
     flag_autosync: MutableMapping[str, Any]
+    flag_editor: MutableMapping[str, Any]
 
     def __post_init__(self):
         # define global parser

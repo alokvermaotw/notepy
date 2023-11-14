@@ -54,11 +54,12 @@ class BaseWrapper(ABC):
         Check that the command is present on the system.
         """
         try:
-            subprocess.run(self.cmd, capture_output=True, check=True)
+            subprocess.run(['which', self.cmd], capture_output=True, check=True)
         except FileNotFoundError:
-            raise WrapperException(f'{self.cmd} is not present on your system.')
+            raise WrapperException('`which` is not present on your system. '
+                                   'Please install it before anything else.')
         except subprocess.CalledProcessError:
-            pass
+            raise WrapperException(f"'{self.cmd}' is not present on your system.")
 
 
 class WrapperException(Exception):

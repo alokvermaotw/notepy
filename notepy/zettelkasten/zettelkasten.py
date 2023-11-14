@@ -1,15 +1,19 @@
 from __future__ import annotations
-from dataclasses import dataclass, fields
-from pathlib import Path
+
 from typing import Any, Optional
 from collections.abc import Sequence, MutableMapping, Collection
-from tempfile import NamedTemporaryFile
+
 import subprocess
+from dataclasses import dataclass, fields
+from pathlib import Path
+from tempfile import NamedTemporaryFile
 from glob import glob1
 from multiprocessing import Pool
 from copy import copy
+
 from notepy.zettelkasten.notes import Note
 from notepy.wrappers.git_wrapper import Git, GitMixin
+from notepy.wrappers.editor_wrapper import Editor
 from notepy.zettelkasten.sql import DBManager
 
 
@@ -32,6 +36,7 @@ class Zettelkasten(GitMixin):
     author: str
     autocommit: bool = True
     autosync: bool = False
+    editor: Optional[str] = None
     note_obj: type[Note] = Note
     delimiter: str = "---"
     header: str = "# "
@@ -186,8 +191,10 @@ class Zettelkasten(GitMixin):
             # write the note in the temporary file
             f.write(note.materialize())
             f.seek(0)
-            subprocess.run(['hx', f.name],
-                           cwd=self.vault)
+
+            # edit the note
+            editor = Editor(self.editor)
+            editor.edit(f.name, cwd=self.vault)
 
             # TODO: consider whether opening two handles to same file is good
             # idea

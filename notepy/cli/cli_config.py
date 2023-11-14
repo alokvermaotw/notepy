@@ -124,5 +124,11 @@ _COMMANDS: MutableMapping = {
     "flag_autosync": {
         "action": "store_true",
         "help": "Whether to push to remote origin at every action."
+    },
+    "flag_editor": {
+        "default": [None],
+        "type": str,
+        "nargs": 1,
+        "help": "Editor to use."
     }
 }
