@@ -1,8 +1,9 @@
 from pathlib import Path
 from collections.abc import MutableMapping
+from typing import Any
 
 
-_COMMANDS: MutableMapping = {
+_COMMANDS: MutableMapping[str, Any] = {
     "command_initialize": {
         "help": "Initialize the vault.",
         "flags": {

@@ -183,7 +183,7 @@ class Cli(SubcommandsMixin):
     flag_autosync: MutableMapping[str, Any]
     flag_editor: MutableMapping[str, Any]
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         # define global parser
         self.global_parser = ArgumentParser(prog=self.prog,
                                             description=self.description)
@@ -239,16 +239,16 @@ class Cli(SubcommandsMixin):
         default_func = getattr(self, command, self.not_implemented)
         parser.set_defaults(func=default_func)
 
-    def parse(self, *args, **kwargs) -> Namespace:
+    def parse(self, *args: Any, **kwargs: Any) -> Namespace:
         cli_args: Namespace = self.global_parser.parse_args(*args, **kwargs)
 
         return cli_args
 
-    def run(self, *args, **kwargs) -> None:
+    def run(self, *args: Any, **kwargs: Any) -> None:
         cli_args = self.parse(*args, **kwargs)
         if hasattr(cli_args, 'func'):
             cli_args.func(cli_args)
 
-    def __call__(self, *args, **kwargs) -> None:
+    def __call__(self, *args: Any, **kwargs: Any) -> None:
         cli_args = self.parse(*args, **kwargs)
         cli_args.func(cli_args)

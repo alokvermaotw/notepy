@@ -2,7 +2,7 @@ from notepy.cli.cli import Cli
 from notepy.cli.cli_config import _COMMANDS
 
 
-def run():
+def run() -> None:
     cli = Cli(prog="notepy", description="Zettelkasten manager", **_COMMANDS)
     cli.run()
 

@@ -3,7 +3,7 @@ from pathlib import Path
 from typing import Optional
 import subprocess
 
-from notepy.wrappers.base_wrapper import BaseWrapper, run_and_handle, WrapperException
+from notepy.wrappers.base_wrapper import BaseWrapper, WrapperException
 
 
 class Editor(BaseWrapper):
@@ -16,7 +16,6 @@ class Editor(BaseWrapper):
     def __init__(self, editor: Optional[str] = None) -> None:
         editor_env = os.getenv("EDITOR")
         visual_env = os.getenv("VISUAL")
-        alternative = "/usr/bin/vi"
 
         if editor is not None:
             self.editor = editor
