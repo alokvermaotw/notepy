@@ -163,7 +163,7 @@ class Note(BaseNote):
         Sluggify the title of the note.
         """
         clean_title = "".join(list(map(lambda x: x
-                                       if x not in punctuation
+                                       if x not in punctuation or x == "-"
                                        else "", self.title)))
         slug = clean_title.lower().replace(" ", "-")
 
