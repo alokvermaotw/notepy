@@ -38,12 +38,17 @@ class Colors(Enum):
     RESET = "\033[0m"
 
 
-def color(text: Show, COLOUR: str, context: str = "FG") -> str:
+def color(text: Show,
+          COLOUR: str,
+          context: str = "FG",
+          no_color: bool = True) -> str:
     if context not in ["FG", "BG"]:
         raise ValueError("context can only be 'FG' or 'BG'.")
-    return (f"{getattr(Colors, COLOUR+'_'+context).value}"
-            f"{text}"
-            f"{Colors.RESET.value}")
+    if not no_color:
+        return (f"{getattr(Colors, COLOUR+'_'+context).value}"
+                f"{text}"
+                f"{Colors.RESET.value}")
+    return text
 
 
 class SubcommandsMixin:
@@ -115,8 +120,10 @@ class SubcommandsMixin:
             my_zk = SubcommandsMixin._create_zettelkasten(args)
             results = my_zk.list_notes()
             for id, title in results:
-                print(f"{color(title, 'CYAN')} "
-                      f"(ID: {color(id, 'YELLOW')})")
+                text_id = color(id, 'YELLOW', no_color=args.no_color)
+                text_title = color(title, 'CYAN', no_color=args.no_color)
+                text = text_id if args.only_id else f"{text_title} (ID: {text_id})"
+                print(text, flush=True)
         except zk.ZettelkastenException as e:
             print(e)
 
@@ -251,4 +258,5 @@ class Cli(SubcommandsMixin):
 
     def __call__(self, *args: Any, **kwargs: Any) -> None:
         cli_args = self.parse(*args, **kwargs)
-        cli_args.func(cli_args)
+        if hasattr(cli_args, 'func'):
+            cli_args.func(cli_args)

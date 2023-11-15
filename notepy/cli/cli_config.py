@@ -76,7 +76,17 @@ _COMMANDS: MutableMapping[str, Any] = {
         }
     },
     "command_list": {
-        "help": "List all the notes."
+        "help": "List all the notes.",
+        "flags": {
+            "--no-color": {
+                "help": "Output without color.",
+                "action": "store_true"
+            },
+            "--only-id": {
+                "help": "Show only the ID.",
+                "action": "store_true"
+            }
+        }
     },
     "command_reindex": {
         "help": "Reindex the vault.",
