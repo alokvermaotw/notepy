@@ -55,8 +55,8 @@ _COMMANDS: MutableMapping[str, Any] = {
         "help": "Delete a note by ID.",
         "flags": {
             "zk_id": {
-                "help": "ID of the note to delete.",
-                "nargs": 1,
+                "help": "ID of the note(s) to delete.",
+                "nargs": "+",
                 "type": int,
             },
             "--no-confirmation": {
@@ -78,6 +78,37 @@ _COMMANDS: MutableMapping[str, Any] = {
     "command_list": {
         "help": "List all the notes.",
         "flags": {
+            "--tags": {
+                "help": "filter the list by these tags.",
+                "nargs": "+",
+                "type": str,
+                "default": None
+            },
+            "--links": {
+                "help": "filter the list by these links.",
+                "nargs": "+",
+                "type": str,
+                "default": None
+            },
+            "--creation-date": {
+                "help": "filter the list by creation date",
+                "nargs": "+",
+                "type": str,
+                "default": None
+            },
+            "--access-date": {
+                "help": "filter the list by access date",
+                "nargs": "+",
+                "type": str,
+                "default": None
+            },
+            "--sort-by": {
+                "help": "sort the list by criteria in ascending order.",
+                "nargs": 1,
+                "type": str,
+                "default": None,
+                "choices": ["title", "zk_id", "creation_date", "access_date", "tag", "link"]
+            },
             "--no-color": {
                 "help": "Output without color.",
                 "action": "store_true"
