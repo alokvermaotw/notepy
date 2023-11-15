@@ -3,7 +3,6 @@ from __future__ import annotations
 from typing import Any, Optional
 from collections.abc import Sequence, MutableMapping, Collection
 
-import subprocess
 from dataclasses import dataclass, fields
 from pathlib import Path
 from tempfile import NamedTemporaryFile
@@ -15,6 +14,7 @@ from notepy.zettelkasten.notes import Note
 from notepy.wrappers.git_wrapper import Git, GitMixin
 from notepy.wrappers.editor_wrapper import Editor
 from notepy.zettelkasten.sql import DBManager
+from notepy.utils import ask_for_confirmation
 
 
 # TODO: implement an abstract class for this.
@@ -133,7 +133,6 @@ class Zettelkasten(GitMixin):
 
         return cls(**zk_args)
 
-
     @staticmethod
     def is_zettelkasten(path: str | Path) -> bool:
         """
@@ -207,7 +206,7 @@ class Zettelkasten(GitMixin):
                                           header=self.header,
                                           link_del=self.link_del)
         # ask for confirmation
-        if confirmation and not self._ask_for_confirmation():
+        if confirmation and not ask_for_confirmation("Save note?"):
             return None
 
         return new_note
@@ -319,7 +318,7 @@ class Zettelkasten(GitMixin):
         Delete a note.
 
         :param zk_id: the ID of the note to delete.
-        :param confirmation: whether to ask for confirmation to save the note.
+        :param confirmation: whether to ask for confirmation to delete the note.
         """
 
         # check if vault is a zettelkasten
@@ -332,7 +331,7 @@ class Zettelkasten(GitMixin):
         note_path = self.vault / filename
 
         # ask for confirmation
-        if confirmation and not self._ask_for_confirmation():
+        if confirmation and not ask_for_confirmation("Delete note?"):
             return None
 
         # remove from index
@@ -346,18 +345,82 @@ class Zettelkasten(GitMixin):
                              commit=self.autocommit,
                              push=self.autosync)
 
-    def list_notes(self) -> Sequence[tuple[int, str]]:
+    def _delete_single_note(self, zk_id: int) -> int:
+        """
+        Helper function.
+
+        :return: 1 if successful, 0 otherwise
+        """
+        # check that the note exists
+        if not self._note_exists(zk_id):
+            print(f"Note '{zk_id}' does not exist.")
+            return 0
+
+        filename = Path(str(zk_id)).with_suffix(".md")
+        note_path = self.vault / filename
+
+        # remove from index
+        self.dbmanager.delete_from_index(zk_id)
+
+        # remove note
+        note_path.unlink(missing_ok=True)
+
+        return 1
+
+    def delete_multiple(self,
+                        zk_ids: list[int],
+                        confirmation: bool = False) -> int:
+        """
+        Delete multiple notes in parallel.
+
+        :param zk_ids: list of notes ids to delete.
+        :param confirmation: whether to ask for confirmation to delete the notes.
+        """
         # check if vault is a zettelkasten
         self._check_zettelkasten()
-        results = self.dbmanager.list()
+
+        # ask for confirmation
+        if confirmation and not ask_for_confirmation("Delete notes?"):
+            return 0
+
+        # delete in parallel
+        with Pool() as executor:
+            no_deleted_files = executor.map(self._delete_single_note, zk_ids)
+
+        # add and commit
+        self.commit_and_sync(msg='Removed batch of notes',
+                             commit=self.autocommit,
+                             push=self.autosync)
+
+        return sum(no_deleted_files)
+
+    def list_notes(self,
+                   tags: Optional[list[str]] = None,
+                   links: Optional[list[str]] = None,
+                   creation_date: Optional[list[str]] = None,
+                   access_date: Optional[list[str]] = None,
+                   sort_by: Optional[str] = None) -> Sequence[tuple[int, str]]:
+        """
+        List and filter based on tags, links and date
+        """
+        # check if vault is a zettelkasten
+        self._check_zettelkasten()
+        results = self.dbmanager.list_notes(tags,
+                                            links,
+                                            creation_date,
+                                            access_date,
+                                            sort_by)
 
         return results
 
-    # NOTE: maybe it could just be quicker to catch FileNotFoundError?
-    def _note_exists(self, zk_id: int) -> bool:
-        all_ids = [id for id, title in self.list_notes()]
+    def get_metadata(self, zk_id: int) -> Sequence[tuple[int, str, str, str]]:
+        pass
 
-        return zk_id in all_ids
+    def _note_exists(self, zk_id: int) -> bool:
+        filename = Path(str(zk_id)).with_suffix(".md")
+        path = self.vault / filename
+
+        return path.is_file()
 
     def print_note(self, zk_id: int) -> str:
         """
@@ -455,14 +518,6 @@ class Zettelkasten(GitMixin):
         self.commit_and_sync(msg='Reindexed vault',
                              commit=self.autocommit,
                              push=self.autosync)
-
-    def _ask_for_confirmation(self, msg: str = "Save note?") -> bool:
-        response = input(f"{msg} [Y/n]: ")
-        commit = True
-        if response.lower() in ['n', 'no', 'nope']:
-            commit = False
-
-        return commit
 
     def get_last(self) -> int:
         """

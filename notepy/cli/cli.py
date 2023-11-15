@@ -10,6 +10,7 @@ from notepy.zettelkasten.zettelkasten import Zettelkasten
 from notepy.zettelkasten import zettelkasten as zk
 from notepy.wrappers.base_wrapper import WrapperException
 from notepy.wrappers.editor_wrapper import EditorException
+from notepy.utils import spinner, ask_for_confirmation
 # import tomllib
 
 
@@ -41,14 +42,14 @@ class Colors(Enum):
 def color(text: Show,
           COLOUR: str,
           context: str = "FG",
-          no_color: bool = True) -> str:
+          no_color: bool = False) -> str:
     if context not in ["FG", "BG"]:
         raise ValueError("context can only be 'FG' or 'BG'.")
     if not no_color:
         return (f"{getattr(Colors, COLOUR+'_'+context).value}"
                 f"{text}"
                 f"{Colors.RESET.value}")
-    return text
+    return str(text)
 
 
 class SubcommandsMixin:
@@ -99,12 +100,27 @@ class SubcommandsMixin:
 
     @staticmethod
     def delete(args: Namespace) -> None:
-        try:
-            my_zk = SubcommandsMixin._create_zettelkasten(args)
-            my_zk.delete(args.zk_id[0],
-                         confirmation=args.no_confirmation)
-        except zk.ZettelkastenException as e:
-            print(e)
+        my_zk = SubcommandsMixin._create_zettelkasten(args)
+
+        # we need to ask for confirmation here since it would
+        # interfere with the spinner
+        if args.no_confirmation and not ask_for_confirmation("Delete note(s)?"):
+            return None
+
+        if len(args.zk_id) == 1:
+            # single note deletion
+            @spinner("Deleting note...", "Deleted note {}.", format=True)
+            def decorated_delete():
+                my_zk.delete(args.zk_id[0])
+                return args.zk_id[0]
+        else:
+            # batch deletion
+            @spinner("Deleting notes...", "Deleted {} notes.", format=True)
+            def decorated_delete():
+                no_deletions = my_zk.delete_multiple(args.zk_id)
+                return no_deletions
+
+        decorated_delete()
 
     @staticmethod
     def print(args: Namespace) -> None:
@@ -118,7 +134,11 @@ class SubcommandsMixin:
     def list(args: Namespace) -> None:
         try:
             my_zk = SubcommandsMixin._create_zettelkasten(args)
-            results = my_zk.list_notes()
+            results = my_zk.list_notes(args.tags,
+                                       args.links,
+                                       args.creation_date,
+                                       args.access_date,
+                                       args.sort_by)
             for id, title in results:
                 text_id = color(id, 'YELLOW', no_color=args.no_color)
                 text_title = color(title, 'CYAN', no_color=args.no_color)
@@ -128,17 +148,13 @@ class SubcommandsMixin:
             print(e)
 
     @staticmethod
+    @spinner("Reindexing vault...", "Reindexing terminated successfully.")
     def reindex(args: Namespace) -> None:
-        try:
-            my_zk = SubcommandsMixin._create_zettelkasten(args)
-            if args.no_multi_core:
-                my_zk.multiprocess_index_vault()
-            else:
-                my_zk.index_vault()
-
-            print("Reindexing terminated successfully.")
-        except zk.ZettelkastenException as e:
-            print(e)
+        my_zk = SubcommandsMixin._create_zettelkasten(args)
+        if args.no_multi_core:
+            my_zk.multiprocess_index_vault()
+        else:
+            my_zk.index_vault()
 
     @staticmethod
     def next(args: Namespace) -> None:
@@ -184,6 +200,7 @@ class Cli(SubcommandsMixin):
     command_list: MutableMapping[str, Any]
     command_reindex: MutableMapping[str, Any]
     command_next: MutableMapping[str, Any]
+    # command_metadata: MutableMapping[str, Any]
     flag_vault: MutableMapping[str, Any]
     flag_author: MutableMapping[str, Any]
     flag_autocommit: MutableMapping[str, Any]
