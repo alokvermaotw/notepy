@@ -38,7 +38,7 @@ _COMMANDS: MutableMapping[str, Any] = {
         }
     },
     "command_edit": {
-        "help": "Open an existing note by ID.",
+        "help": "Open an existing note by ID to edit.",
         "flags": {
             "zk_id": {
                 "help": "ID of the note to open.",
@@ -48,6 +48,16 @@ _COMMANDS: MutableMapping[str, Any] = {
             "--no-confirmation": {
                 "help": "Whether to ask for confirmation before saving.",
                 "action": "store_false"
+            }
+        }
+    },
+    "command_open": {
+        "help": ("Open the selected notes without affecting index and .last"),
+        "flags": {
+            "zk_id": {
+                "help": "ID(s) of the note(s) to open.",
+                "nargs": "+",
+                "type": int
             }
         }
     },

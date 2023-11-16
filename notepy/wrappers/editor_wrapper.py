@@ -45,6 +45,23 @@ class Editor(BaseWrapper):
                              f"{process_result.stdout.decode('utf-8')}")
             raise EditorException(error_message)
 
+    def multiple_edit(self, paths: list[Path | str], cwd: str | Path = "~") -> None:
+        """
+        Edit the notes at the given paths
+        """
+
+        paths = [Path(path).expanduser() for path in paths]
+        cwd = Path(cwd).expanduser()
+        command = [self.editor] + paths
+        process_result = subprocess.run(command,
+                                        cwd=cwd)
+        process_returncode = process_result.returncode
+        if process_returncode != 0:
+            error_message = (f'Command "{command}" returned a non-zero exit status '
+                             f"{process_returncode}. Below is the full stderr:\n\n"
+                             f"{process_result.stdout.decode('utf-8')}")
+            raise EditorException(error_message)
+
 
 class EditorException(WrapperException):
     pass

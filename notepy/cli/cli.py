@@ -12,7 +12,6 @@ from notepy.wrappers.editor_wrapper import EditorException
 from notepy.utils import spinner, ask_for_confirmation
 from notepy.zettelkasten.sql import DBManagerException
 from notepy.cli.colors import color
-# import tomllib
 
 
 _COLORS = {
@@ -63,8 +62,26 @@ class SubcommandsMixin:
     def edit(args: Namespace) -> None:
         try:
             my_zk = SubcommandsMixin._create_zettelkasten(args)
-            my_zk.update(args.zk_id[0],
+            zk_id = args.zk_id[0]
+            if zk_id == -1:
+                zk_id = my_zk.get_last()
+            my_zk.update(zk_id,
                          confirmation=args.no_confirmation)
+        except zk.ZettelkastenException as e:
+            print(e)
+        except WrapperException as e:
+            print(e)
+        except EditorException as e:
+            print(e)
+
+    @staticmethod
+    def open(args: Namespace) -> None:
+        try:
+            my_zk = SubcommandsMixin._create_zettelkasten(args)
+            zk_id = [my_zk.get_last()
+                     if zk_id == -1
+                     else zk_id for zk_id in args.zk_id]
+            my_zk.open(zk_id)
         except zk.ZettelkastenException as e:
             print(e)
         except WrapperException as e:
@@ -219,6 +236,7 @@ class Cli(SubcommandsMixin):
     command_initialize: MutableMapping[str, Any]
     command_new: MutableMapping[str, Any]
     command_edit: MutableMapping[str, Any]
+    command_open: MutableMapping[str, Any]
     command_delete: MutableMapping[str, Any]
     command_print: MutableMapping[str, Any]
     command_list: MutableMapping[str, Any]

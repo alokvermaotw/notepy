@@ -310,6 +310,21 @@ class Zettelkasten(GitMixin):
                              commit=self.autocommit,
                              push=self.autosync)
 
+    def open(self, zk_id: list[int]) -> None:
+        # check if vault is a zettelkasten
+        self._check_zettelkasten()
+
+        filenames = []
+        for id in set(zk_id):
+            # check that the note exists
+            if not self._note_exists(id):
+                raise ZettelkastenException(f"Note '{id}' does not exist.")
+
+            filenames.append(Path(str(id)).with_suffix(".md"))
+
+        editor = Editor(self.editor)
+        editor.multiple_edit(filenames, self.vault)
+
     def delete(self, zk_id: int, confirmation: bool = False) -> None:
         """
         Delete a note.
@@ -628,6 +643,12 @@ class Zettelkasten(GitMixin):
                              push=self.autosync)
 
     def get_metadata(self, zk_id: int) -> MutableMapping[str, Any]:
+        # check if vault is a zettelkasten
+        self._check_zettelkasten()
+        # check that the note exists
+        if not self._note_exists(zk_id):
+            raise ZettelkastenException(f"Note '{zk_id}' does not exist.")
+
         columns = ['zk_id',
                    'title',
                    'author',
