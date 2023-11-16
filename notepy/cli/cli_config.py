@@ -125,7 +125,7 @@ _COMMANDS: MutableMapping[str, Any] = {
                 "nargs": 1,
                 "type": str,
                 "default": [None],
-                "choices": ["title", "author", "zk_id", "tag", "link"]
+                "choices": ["title", "author", "zk_id", "tag", "link", "creation_date", "last_changed"]
             },
             "--descending": {
                 "help": "How to sort the results.",
@@ -140,7 +140,7 @@ _COMMANDS: MutableMapping[str, Any] = {
                 "type": str,
                 "nargs": "+",
                 "default": ["title", "zk_id"],
-                "choices": ["title", "author", "zk_id", "creation_date", "access_date", "tag", "link"]
+                "choices": ["title", "author", "zk_id", "creation_date", "last_changed", "tag", "link"]
             },
             "--no-header": {
                 "help": "Do not show header",

@@ -58,7 +58,9 @@ _COLORS = {
     "zk_id": "YELLOW",
     "author": "WHITE",
     "tag": "GREEN",
-    "link": "BLUE"
+    "link": "BLUE",
+    "creation_date": "MAGENTA",
+    "last_changed": "RED"
 }
 
 
@@ -159,13 +161,13 @@ class SubcommandsMixin:
                 header_length = len(", ".join(args.show))
                 header = ", ".join([color(col,
                                           _COLORS.get(
-                                              col, Colors.WHITE_FG.value),
+                                              col, "WHITE"),
                                           no_color=args.no_color) for col in args.show])
                 print(header)
                 print("-"*header_length)
             for res in results:
                 text = ", ".join([color(col,
-                                 _COLORS.get(args.show[index], Colors.WHITE_FG.value),
+                                 _COLORS.get(args.show[index], "WHITE"),
                                  no_color=args.no_color) for index, col in enumerate(res)])
                 print(text, flush=True)
         except zk.ZettelkastenException as e:
