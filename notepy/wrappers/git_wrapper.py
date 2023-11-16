@@ -328,6 +328,7 @@ class GitMixin:
         Synchronize with remote origin.
         """
         if (git := self._detect_git_repo(self.vault)):
+            git.commit_on_change("Synchronizing.")
             git.pull()
             git.push()
 

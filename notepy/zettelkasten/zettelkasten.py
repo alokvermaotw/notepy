@@ -114,9 +114,6 @@ class Zettelkasten(GitMixin):
             # add origin if provided
             if git_origin:
                 git.origin = git_origin
-            if autocommit:
-                git.commit_on_change()
-            if autosync:
                 git.push()
 
         zk_args: MutableMapping[str, Any] = {

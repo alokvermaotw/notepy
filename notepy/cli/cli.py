@@ -5,7 +5,7 @@ from collections.abc import MutableMapping
 from dataclasses import dataclass, fields
 from argparse import ArgumentParser, Namespace
 
-from notepy.zettelkasten.zettelkasten import Zettelkasten, ZettelkastenException
+from notepy.zettelkasten.zettelkasten import Zettelkasten
 from notepy.zettelkasten import zettelkasten as zk
 from notepy.wrappers.base_wrapper import WrapperException
 from notepy.wrappers.editor_wrapper import EditorException
@@ -191,7 +191,7 @@ class SubcommandsMixin:
 
         except TypeError as e:
             print(e)
-        except ZettelkastenException as e:
+        except zk.ZettelkastenException as e:
             print(e)
 
     @staticmethod
