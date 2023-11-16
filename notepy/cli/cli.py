@@ -169,7 +169,7 @@ class SubcommandsMixin:
                 text = ", ".join([color(col,
                                  _COLORS.get(args.show[index], "WHITE"),
                                  no_color=args.no_color) for index, col in enumerate(res)])
-                print(text, flush=True)
+                print(text)
         except zk.ZettelkastenException as e:
             print(e)
         except DBManagerException as e:
