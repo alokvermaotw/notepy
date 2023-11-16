@@ -66,6 +66,7 @@ def spinner(msg: str = "", epilogue: str = "", format=False) -> Callable:
                 # print the epilogue
                 print(final_output)
             except BaseException as e:
+                print(" "*len(spinner_string), end="\r", flush=True)
                 print(e)
             finally:
                 # show the cursor again

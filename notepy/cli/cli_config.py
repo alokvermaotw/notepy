@@ -177,6 +177,9 @@ _COMMANDS: MutableMapping[str, Any] = {
             }
         }
     },
+    "command_sync": {
+        "help": "Commit and sync with remote repository if available.",
+    },
     "flag_vault": {
         "default": ".",
         "type": Path,
