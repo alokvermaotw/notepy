@@ -11,6 +11,7 @@ from notepy.zettelkasten import zettelkasten as zk
 from notepy.wrappers.base_wrapper import WrapperException
 from notepy.wrappers.editor_wrapper import EditorException
 from notepy.utils import spinner, ask_for_confirmation
+from notepy.zettelkasten.sql import DBManagerException
 # import tomllib
 
 
@@ -50,6 +51,15 @@ def color(text: Show,
                 f"{text}"
                 f"{Colors.RESET.value}")
     return str(text)
+
+
+_COLORS = {
+    "title": "CYAN",
+    "zk_id": "YELLOW",
+    "author": "WHITE",
+    "tag": "GREEN",
+    "link": "BLUE"
+}
 
 
 class SubcommandsMixin:
@@ -134,17 +144,33 @@ class SubcommandsMixin:
     def list(args: Namespace) -> None:
         try:
             my_zk = SubcommandsMixin._create_zettelkasten(args)
-            results = my_zk.list_notes(args.tags,
+            results = my_zk.list_notes(args.title,
+                                       args.id,
+                                       args.author_name,
+                                       args.tags,
                                        args.links,
-                                       args.creation_date,
-                                       args.access_date,
-                                       args.sort_by)
-            for id, title in results:
-                text_id = color(id, 'YELLOW', no_color=args.no_color)
-                text_title = color(title, 'CYAN', no_color=args.no_color)
-                text = text_id if args.only_id else f"{text_title} (ID: {text_id})"
+                                       # args.creation_date,
+                                       # args.access_date,
+                                       args.sort_by[0],
+                                       args.descending,
+                                       args.show)
+            if not args.no_header:
+                print()
+                header_length = len(", ".join(args.show))
+                header = ", ".join([color(col,
+                                          _COLORS.get(
+                                              col, Colors.WHITE_FG.value),
+                                          no_color=args.no_color) for col in args.show])
+                print(header)
+                print("-"*header_length)
+            for res in results:
+                text = ", ".join([color(col,
+                                 _COLORS.get(args.show[index], Colors.WHITE_FG.value),
+                                 no_color=args.no_color) for index, col in enumerate(res)])
                 print(text, flush=True)
         except zk.ZettelkastenException as e:
+            print(e)
+        except DBManagerException as e:
             print(e)
 
     @staticmethod

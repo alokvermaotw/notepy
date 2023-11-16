@@ -4,6 +4,8 @@ from collections.abc import Callable
 import time
 from functools import wraps
 
+from typing import Optional
+
 _WAIT_TIME = 0.08
 
 
@@ -20,7 +22,7 @@ class PropagatingThread(Thread):
         except BaseException as e:
             self.exc = e
 
-    def join(self, timeout: int = None):
+    def join(self, timeout: Optional[float] = None):
         super().join(timeout)
         if self.exc:
             raise self.exc

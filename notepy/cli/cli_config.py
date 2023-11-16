@@ -78,6 +78,24 @@ _COMMANDS: MutableMapping[str, Any] = {
     "command_list": {
         "help": "List all the notes.",
         "flags": {
+            "--title": {
+                "help": "filter the list by these titles.",
+                "nargs": "+",
+                "type": str,
+                "default": None
+            },
+            "--id": {
+                "help": "filter the list by these ids.",
+                "nargs": "+",
+                "type": str,
+                "default": None
+            },
+            "--author-name": {
+                "help": "filter the list by these authors.",
+                "nargs": "+",
+                "type": str,
+                "default": None
+            },
             "--tags": {
                 "help": "filter the list by these tags.",
                 "nargs": "+",
@@ -90,31 +108,42 @@ _COMMANDS: MutableMapping[str, Any] = {
                 "type": str,
                 "default": None
             },
-            "--creation-date": {
-                "help": "filter the list by creation date",
-                "nargs": "+",
-                "type": str,
-                "default": None
-            },
-            "--access-date": {
-                "help": "filter the list by access date",
-                "nargs": "+",
-                "type": str,
-                "default": None
-            },
+            # "--creation-date": {
+            #     "help": "filter the list by creation date",
+            #     "nargs": "+",
+            #     "type": str,
+            #     "default": None
+            # },
+            # "--access-date": {
+            #     "help": "filter the list by access date",
+            #     "nargs": "+",
+            #     "type": str,
+            #     "default": None
+            # },
             "--sort-by": {
                 "help": "sort the list by criteria in ascending order.",
                 "nargs": 1,
                 "type": str,
-                "default": None,
-                "choices": ["title", "zk_id", "creation_date", "access_date", "tag", "link"]
+                "default": [None],
+                "choices": ["title", "author", "zk_id", "tag", "link"]
+            },
+            "--descending": {
+                "help": "How to sort the results.",
+                "action": "store_true"
             },
             "--no-color": {
                 "help": "Output without color.",
                 "action": "store_true"
             },
-            "--only-id": {
-                "help": "Show only the ID.",
+            "--show": {
+                "help": "Which attributes to show",
+                "type": str,
+                "nargs": "+",
+                "default": ["title", "zk_id"],
+                "choices": ["title", "author", "zk_id", "creation_date", "access_date", "tag", "link"]
+            },
+            "--no-header": {
+                "help": "Do not show header",
                 "action": "store_true"
             }
         }

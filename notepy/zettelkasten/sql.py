@@ -55,6 +55,15 @@ _UPDATE_MAIN_STMT = """
 _LIST_STMT = "SELECT zk_id, title FROM zettelkasten;"
 _GET_LINKS_ID = "SELECT link FROM links WHERE zk_id = ?;"
 
+_JOINED_ALL = """
+    (SELECT *
+    FROM (
+            SELECT * FROM zettelkasten
+            LEFT JOIN tags ON zettelkasten.zk_id = tags.zk_id
+        ) tmp
+        LEFT JOIN links ON tmp.zk_id = links.zk_id)
+"""
+
 
 class DBManager:
     """
@@ -145,17 +154,61 @@ class DBManager:
         except sqlite3.IntegrityError as e:
             raise DBManagerException("SQL error") from e
 
+    # TODO: needs improvements in performance. Maybe don't build
+    # a huge join but build incrementally?
     def list_notes(self,
-                   tags: Optional[list[str]] = None,
-                   links: Optional[list[str]] = None,
-                   creation_date: Optional[list[str]] = None,
-                   access_date: Optional[list[str]] = None,
-                   sort_by: Optional[str] = None) -> Sequence[tuple[int, str]]:
+                   title: Optional[list[str]] = None,
+                   zk_id: Optional[list[str]] = None,
+                   author: Optional[list[str]] = None,
+                   tag: Optional[list[str]] = None,
+                   link: Optional[list[str]] = None,
+                   # creation_date: Optional[list[str]] = None,
+                   # access_date: Optional[list[str]] = None,
+                   sort_by: Optional[str] = None,
+                   descending: bool = True,
+                   show: list[str] = ['title', 'zk_id']) -> Sequence[tuple[int, str]]:
         """
-        List zk_id, title of the notes in the database.
         """
+        query: str = _JOINED_ALL
+        payload = []
+        select_cols = "SELECT DISTINCT " + ", ".join(f"{col}" for col in show) + " FROM "
+
+        columns_query = []
+        for col in ['title', 'zk_id', 'author', 'tag', 'link']:
+            local_col = locals()[col]
+            if local_col is not None:
+                col_query = " OR ".join(f"{col} LIKE ?"
+                                        if not el.startswith("!")
+                                        else f"{col} NOT LIKE ?"
+                                        for el in local_col
+                                        )
+                payload.extend([el.removeprefix("!") for el in local_col])
+                columns_query.append(col_query)
+        where_query = " AND ".join(columns_query)
+        where_query = "WHERE " + where_query if where_query else ""
+
+        ascending_query = "DESC" if descending else "ASC"
+        sort_query = ""
+        if sort_by is not None:
+            sort_query = f"\nORDER BY ? {ascending_query}"
+            payload.append(sort_by)
+
+        query = select_cols + query + where_query + sort_query
+
+        try:
+            with sqlite3.connect(self.index) as conn:
+                cur = conn.cursor()
+                results = cur.execute(query, tuple(payload)).fetchall()
+                cur.close()
+        except sqlite3.OperationalError as e:
+            raise DBManagerException("Something went wrong. Have you tried indexing your notes first?"
+                                     f"\nError: {e}")
+
+        return results
+
+    def get_title(self) -> Sequence[str]:
         with sqlite3.connect(self.index) as conn:
-            results = conn.execute(_LIST_STMT).fetchall()
+            results = conn.execute("select title from zettelkasten;").fetchall()
 
         return results
 

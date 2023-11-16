@@ -212,7 +212,7 @@ class Zettelkasten(GitMixin):
         return new_note
 
     def _check_unique_title(self, note_title: str) -> None:
-        all_titles = [title for zk_id, title in self.list_notes()]
+        all_titles = [title[0] for title in self.dbmanager.get_title()]
         if note_title in all_titles:
             raise TitleClashError("Title is already used in another note.")
 
@@ -395,21 +395,31 @@ class Zettelkasten(GitMixin):
         return sum(no_deleted_files)
 
     def list_notes(self,
+                   title: Optional[list[str]] = None,
+                   zk_id: Optional[list[str]] = None,
+                   author: Optional[list[str]] = None,
                    tags: Optional[list[str]] = None,
                    links: Optional[list[str]] = None,
-                   creation_date: Optional[list[str]] = None,
-                   access_date: Optional[list[str]] = None,
-                   sort_by: Optional[str] = None) -> Sequence[tuple[int, str]]:
+                   # creation_date: Optional[list[str]] = None,
+                   # access_date: Optional[list[str]] = None,
+                   sort_by: Optional[str] = None,
+                   descending: bool = True,
+                   show: list[str] = ['title', 'zk_id']) -> Sequence[tuple[int, str]]:
         """
         List and filter based on tags, links and date
         """
         # check if vault is a zettelkasten
         self._check_zettelkasten()
-        results = self.dbmanager.list_notes(tags,
+        results = self.dbmanager.list_notes(title,
+                                            zk_id,
+                                            author,
+                                            tags,
                                             links,
-                                            creation_date,
-                                            access_date,
-                                            sort_by)
+                                            # creation_date,
+                                            # access_date,
+                                            sort_by,
+                                            descending,
+                                            show)
 
         return results
 
