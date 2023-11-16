@@ -1,56 +1,19 @@
 from __future__ import annotations
-from typing import Any, Protocol
+from typing import Any
 from collections.abc import MutableMapping
 
 from dataclasses import dataclass, fields
 from argparse import ArgumentParser, Namespace
-from enum import Enum
 
 from notepy.zettelkasten.zettelkasten import Zettelkasten
 from notepy.zettelkasten import zettelkasten as zk
 from notepy.wrappers.base_wrapper import WrapperException
 from notepy.wrappers.editor_wrapper import EditorException
+from notepy.wrappers.git_wrapper import GitException
 from notepy.utils import spinner, ask_for_confirmation
 from notepy.zettelkasten.sql import DBManagerException
+from notepy.cli.colors import color
 # import tomllib
-
-
-class Show(Protocol):
-    def __str__(self) -> str:
-        ...
-
-
-class Colors(Enum):
-    BLACK_FG = "\033[30m"
-    RED_FG = "\033[31m"
-    GREEN_FG = "\033[32m"
-    YELLOW_FG = "\033[33m"
-    BLUE_FG = "\033[34m"
-    MAGENTA_FG = "\033[35m"
-    CYAN_FG = "\033[36m"
-    WHITE_FG = "\033[37m"
-    BLACK_BG = "\033[40m"
-    RED_BG = "\033[41m"
-    GREEN_BG = "\033[42m"
-    YELLOW_BG = "\033[43m"
-    BLUE_BG = "\033[44m"
-    MAGENTA_BG = "\033[45m"
-    CYAN_BG = "\033[46m"
-    WHITE_BG = "\033[47m"
-    RESET = "\033[0m"
-
-
-def color(text: Show,
-          COLOUR: str,
-          context: str = "FG",
-          no_color: bool = False) -> str:
-    if context not in ["FG", "BG"]:
-        raise ValueError("context can only be 'FG' or 'BG'.")
-    if not no_color:
-        return (f"{getattr(Colors, COLOUR+'_'+context).value}"
-                f"{text}"
-                f"{Colors.RESET.value}")
-    return str(text)
 
 
 _COLORS = {
@@ -199,6 +162,12 @@ class SubcommandsMixin:
             print(e)
 
     @staticmethod
+    @spinner("Syncing local and remote repository...", "Syncing terminated successfully.")
+    def sync(args: Namespace) -> None:
+        my_zk = SubcommandsMixin._create_zettelkasten(args)
+        my_zk.sync()
+
+    @staticmethod
     def _create_zettelkasten(args: Namespace) -> Zettelkasten:
         my_zk = Zettelkasten(vault=args.vault,
                              author=args.author[0],
@@ -228,6 +197,7 @@ class Cli(SubcommandsMixin):
     command_list: MutableMapping[str, Any]
     command_reindex: MutableMapping[str, Any]
     command_next: MutableMapping[str, Any]
+    command_sync: MutableMapping[str, Any]
     # command_metadata: MutableMapping[str, Any]
     flag_vault: MutableMapping[str, Any]
     flag_author: MutableMapping[str, Any]
