@@ -5,11 +5,10 @@ from collections.abc import MutableMapping
 from dataclasses import dataclass, fields
 from argparse import ArgumentParser, Namespace
 
-from notepy.zettelkasten.zettelkasten import Zettelkasten
+from notepy.zettelkasten.zettelkasten import Zettelkasten, ZettelkastenException
 from notepy.zettelkasten import zettelkasten as zk
 from notepy.wrappers.base_wrapper import WrapperException
 from notepy.wrappers.editor_wrapper import EditorException
-from notepy.wrappers.git_wrapper import GitException
 from notepy.utils import spinner, ask_for_confirmation
 from notepy.zettelkasten.sql import DBManagerException
 from notepy.cli.colors import color
@@ -168,6 +167,34 @@ class SubcommandsMixin:
         my_zk.sync()
 
     @staticmethod
+    def info(args: Namespace) -> None:
+        my_zk = SubcommandsMixin._create_zettelkasten(args)
+        zk_id = args.zk_id[0]
+        if zk_id == -1:
+            zk_id = my_zk.get_last()
+        try:
+            result = my_zk.get_metadata(str(zk_id))
+            for col in result:
+                if col in ['tag', 'link']:
+                    continue
+                text = color(col, _COLORS.get(col, "WHITE"),
+                             no_color=args.no_color)
+                print(f"{text}: {result[col]}")
+            for col in ['tag', 'link']:
+                length_text = len(col+": ")
+                elements = list(result[col])
+                text = color(col, _COLORS.get(col, "WHITE"),
+                             no_color=args.no_color)
+                print(f"{text}: {elements[0]}")
+                for el in elements[1:]:
+                    print(" "*length_text + el)
+
+        except TypeError as e:
+            print(e)
+        except ZettelkastenException as e:
+            print(e)
+
+    @staticmethod
     def _create_zettelkasten(args: Namespace) -> Zettelkasten:
         my_zk = Zettelkasten(vault=args.vault,
                              author=args.author[0],
@@ -198,6 +225,7 @@ class Cli(SubcommandsMixin):
     command_reindex: MutableMapping[str, Any]
     command_next: MutableMapping[str, Any]
     command_sync: MutableMapping[str, Any]
+    command_info: MutableMapping[str, Any]
     # command_metadata: MutableMapping[str, Any]
     flag_vault: MutableMapping[str, Any]
     flag_author: MutableMapping[str, Any]

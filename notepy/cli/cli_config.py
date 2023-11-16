@@ -180,6 +180,20 @@ _COMMANDS: MutableMapping[str, Any] = {
     "command_sync": {
         "help": "Commit and sync with remote repository if available.",
     },
+    "command_info": {
+        "help": "Show metadata for a note.",
+        "flags": {
+            "zk_id": {
+                "help": "ID of the note to print.",
+                "nargs": 1,
+                "type": int,
+            },
+            "--no-color": {
+                "help": "Output without color.",
+                "action": "store_true"
+            },
+        }
+    },
     "flag_vault": {
         "default": ".",
         "type": Path,

@@ -423,9 +423,6 @@ class Zettelkasten(GitMixin):
 
         return results
 
-    def get_metadata(self, zk_id: int) -> Sequence[tuple[int, str, str, str]]:
-        pass
-
     def _note_exists(self, zk_id: int) -> bool:
         filename = Path(str(zk_id)).with_suffix(".md")
         path = self.vault / filename
@@ -632,6 +629,27 @@ class Zettelkasten(GitMixin):
                                  f'from {note.zk_id}',
                              commit=self.autocommit,
                              push=self.autosync)
+
+    def get_metadata(self, zk_id: int) -> MutableMapping[str, Any]:
+        columns = ['zk_id',
+                   'title',
+                   'author',
+                   'creation_date',
+                   'last_changed',
+                   'tag',
+                   'link']
+        result = self.list_notes(zk_id=[zk_id],
+                                 show=columns)
+        metadata = {}
+        metadata['zk_id'] = result[0][0]
+        metadata['title'] = result[0][1]
+        metadata['author'] = result[0][2]
+        metadata['creation_date'] = result[0][3]
+        metadata['last_changed'] = result[0][4]
+        metadata['tag'] = set([result[i][5] for i in range(len(result))])
+        metadata['link'] = set([result[i][6] for i in range(len(result))])
+
+        return metadata
 
 
 class ZettelkastenException(Exception):
