@@ -3,10 +3,13 @@ SQLite statements to manage index
 """
 
 import sqlite3
-from notepy.zettelkasten.notes import Note
 from datetime import datetime
 from collections.abc import Sequence
 from pathlib import Path
+
+from typing import Optional
+
+from notepy.zettelkasten.notes import Note, sluggify
 
 
 _CREATE_MAIN_TABLE_STMT = """
@@ -142,7 +145,12 @@ class DBManager:
         except sqlite3.IntegrityError as e:
             raise DBManagerException("SQL error") from e
 
-    def list(self) -> Sequence[tuple[int, str]]:
+    def list_notes(self,
+                   tags: Optional[list[str]] = None,
+                   links: Optional[list[str]] = None,
+                   creation_date: Optional[list[str]] = None,
+                   access_date: Optional[list[str]] = None,
+                   sort_by: Optional[str] = None) -> Sequence[tuple[int, str]]:
         """
         List zk_id, title of the notes in the database.
         """

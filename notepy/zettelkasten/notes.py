@@ -3,14 +3,31 @@ Define the main class that models a zettelkasten note.
 """
 
 from __future__ import annotations
+from collections.abc import Collection
+from typing import Any
+
 from abc import ABC, abstractmethod
 from datetime import datetime
 from dataclasses import dataclass, fields
 from string import punctuation
 from pathlib import Path
-from collections.abc import Collection
-from typing import Any
+
 from notepy.parser.parser import HeaderParser, BodyParser
+
+
+def sluggify(title: str) -> str:
+    """
+    Sluggify the title.
+
+    :param title: title to sluggify.
+    :return: sluggified title (duh).
+    """
+    clean_title = "".join(list(map(lambda x: x
+                                   if x not in punctuation or x == "-"
+                                   else "", title)))
+    slug = clean_title.lower().replace(" ", "-")
+
+    return slug
 
 
 class BaseNote(ABC):
@@ -162,10 +179,7 @@ class Note(BaseNote):
         """
         Sluggify the title of the note.
         """
-        clean_title = "".join(list(map(lambda x: x
-                                       if x not in punctuation or x == "-"
-                                       else "", self.title)))
-        slug = clean_title.lower().replace(" ", "-")
+        slug = sluggify(self.title)
 
         return slug
 
