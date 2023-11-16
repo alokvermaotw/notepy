@@ -190,8 +190,7 @@ class DBManager:
         ascending_query = "DESC" if descending else "ASC"
         sort_query = ""
         if sort_by is not None:
-            sort_query = f"\nORDER BY ? {ascending_query}"
-            payload.append(sort_by)
+            sort_query = f"\nORDER BY {sort_by} {ascending_query}"
 
         query = select_cols + query + where_query + sort_query
 
