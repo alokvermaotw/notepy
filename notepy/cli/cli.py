@@ -99,6 +99,13 @@ class SubcommandsMixin:
     @staticmethod
     def delete(args: Namespace) -> None:
         my_zk = SubcommandsMixin._create_zettelkasten(args)
+        try:
+            zk_id = args.zk_id[0]
+            if zk_id == -1:
+                zk_id = my_zk.get_last()
+        except zk.ZettelkastenException as e:
+            print(e)
+            return
 
         # we need to ask for confirmation here since it would
         # interfere with the spinner
@@ -109,8 +116,8 @@ class SubcommandsMixin:
             # single note deletion
             @spinner("Deleting note...", "Deleted note {}.", format=True)
             def decorated_delete():
-                my_zk.delete(args.zk_id[0])
-                return args.zk_id[0]
+                my_zk.delete(zk_id)
+                return zk_id
         else:
             # batch deletion
             @spinner("Deleting notes...", "Deleted {} notes.", format=True)

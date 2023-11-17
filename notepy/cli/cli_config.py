@@ -7,11 +7,11 @@ _COMMANDS: MutableMapping[str, Any] = {
     "command_initialize": {
         "help": "Initialize the vault.",
         "flags": {
-            "--git_init": {
+            "--git-init": {
                 "help": "Initialize a git repository.",
                 "action": "store_true"
             },
-            "--git_origin": {
+            "--git-origin": {
                 "default": [""],
                 "help": "Remote origin for git repository.",
                 "nargs": 1,

@@ -510,11 +510,6 @@ class Zettelkasten(GitMixin):
                                       link_del=self.link_del)
             self.dbmanager.add_to_index(note)
 
-        # add and commit
-        self.commit_and_sync(msg='Reindexed vault',
-                             commit=self.autocommit,
-                             push=self.autosync)
-
     def _read_note(self, note_path: str) -> Note:
         """
         Utility function for multi core vault reindexing.
@@ -551,11 +546,6 @@ class Zettelkasten(GitMixin):
 
         for note in notes:
             self.dbmanager.add_to_index(note)
-
-        # add and commit
-        self.commit_and_sync(msg='Reindexed vault',
-                             commit=self.autocommit,
-                             push=self.autosync)
 
     def get_last(self) -> int:
         """
