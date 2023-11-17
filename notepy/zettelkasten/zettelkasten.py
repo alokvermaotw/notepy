@@ -567,6 +567,8 @@ class Zettelkasten(GitMixin):
                                .removesuffix(".md"))
         except TypeError:
             raise ZettelkastenException(".last file is malformatted.")
+        except ValueError:
+            raise ZettelkastenException(".last file is malformatted.")
 
         return last_content
 
