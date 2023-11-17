@@ -99,6 +99,7 @@ class Note(BaseNote):
     title: str
     author: str
     date: datetime
+    last: datetime
     zk_id: int
     tags: Collection[str]
     links: Collection[str]
@@ -126,7 +127,7 @@ class Note(BaseNote):
              path: str | Path,
              parsing_obj: Collection[str],
              delimiter: str = "---",
-             special_names: Collection[str] = ("date", "tags", 'zk_id'),
+             special_names: Collection[str] = ("date", "last", "tags", 'zk_id'),
              header: str = "# ",
              link_del: tuple[str, str] = ('[[', ']]'),
              strict: bool = False,
@@ -207,6 +208,8 @@ class Note(BaseNote):
         frontmatter_metadata['tags'] = " ".join(frontmatter_metadata['tags'])
         frontmatter_metadata['date'] = (frontmatter_metadata['date']
                                         .strftime("%Y-%m-%dT%H:%M:%S"))
+        frontmatter_metadata['last'] = (frontmatter_metadata['last']
+                                        .strftime("%Y-%m-%dT%H:%M:%S"))
         yml_header = '\n'.join(
                 ['---'] +
                 [f'{key}: {el}' for key, el in frontmatter_metadata.items()] +
@@ -232,6 +235,7 @@ class Note(BaseNote):
             'title': title,
             'author': author,
             'date': date,
+            'last': date,
             'zk_id': zk_id,
             'tags': [],
         }

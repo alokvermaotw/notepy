@@ -9,6 +9,7 @@ from tempfile import NamedTemporaryFile
 from glob import glob1
 from multiprocessing import Pool
 from copy import copy
+from datetime import datetime
 
 from notepy.zettelkasten.notes import Note
 from notepy.wrappers.git_wrapper import Git, GitMixin
@@ -41,7 +42,7 @@ class Zettelkasten(GitMixin):
     delimiter: str = "---"
     header: str = "# "
     link_del: tuple[str, str] = ('[[', ']]')
-    special_values: Collection[str] = ('date', 'tags', 'zk_id')
+    special_values: Collection[str] = ('date', 'last', 'tags', 'zk_id')
 
     def __post_init__(self) -> None:
         self.vault = Path(self.vault).expanduser()
@@ -108,7 +109,7 @@ class Zettelkasten(GitMixin):
 
         # create git repo
         if git_init:
-            to_ignore = ['.last', '.tmp']
+            to_ignore = ['.last', '.tmp', '.index.db']
             git_path = path / ".git"
             git = Git(path) if git_path.exists() else Git.init(path, to_ignore=to_ignore)
             # add origin if provided
@@ -223,6 +224,9 @@ class Zettelkasten(GitMixin):
         if confirmation and not ask_for_confirmation("Save note?"):
             return None
 
+        # change access time
+        new_note.last = datetime.now()
+
         return new_note
 
     def _check_unique_title(self, note_title: str, strict: bool = False) -> None:
@@ -262,11 +266,6 @@ class Zettelkasten(GitMixin):
         new_note = self._edit_temporary_note(tmp_note, confirmation, strict)
         if new_note is None:
             return None
-
-        # if title was changed, make sure it doesn't clash
-        # with other notes
-        if new_note.title != tmp_note.title:
-            self._check_unique_title(new_note.title, strict=strict)
 
         filename = Path(str(new_note.zk_id)).with_suffix(".md")
 

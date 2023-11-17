@@ -99,10 +99,9 @@ class DBManager:
 
         :param note: the updated note.
         """
-        current_date = datetime.now()
         main_payload = (note.title,
                         note.author,
-                        current_date,
+                        note.last,
                         note.zk_id)
         tags_payload = [(tag, note.zk_id) for tag in note.tags]
         links_payload = [(link, note.zk_id) for link in note.links]
@@ -130,7 +129,7 @@ class DBManager:
                         note.title,
                         note.author,
                         note.date,
-                        note.date)
+                        note.last)
         tags_payload = [(tag, note.zk_id) for tag in note.tags]
         links_payload = [(link, note.zk_id) for link in note.links]
 

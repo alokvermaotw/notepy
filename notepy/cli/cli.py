@@ -124,7 +124,10 @@ class SubcommandsMixin:
     def print(args: Namespace) -> None:
         try:
             my_zk = SubcommandsMixin._create_zettelkasten(args)
-            print(my_zk.print_note(args.zk_id[0]))
+            zk_id = args.zk_id[0]
+            if zk_id == -1:
+                zk_id = my_zk.get_last()
+            print(my_zk.print_note(zk_id))
         except zk.ZettelkastenException as e:
             print(e)
 
@@ -195,10 +198,11 @@ class SubcommandsMixin:
             print(e)
 
     @staticmethod
-    @spinner("Syncing local and remote repository...", "Syncing terminated successfully.")
+    @spinner("Syncing with remote and reindexing...", "Syncing terminated successfully.")
     def sync(args: Namespace) -> None:
         my_zk = SubcommandsMixin._create_zettelkasten(args)
         my_zk.sync()
+        my_zk.multiprocess_index_vault()
 
     @staticmethod
     def info(args: Namespace) -> None:
