@@ -566,9 +566,9 @@ class Zettelkasten(GitMixin):
                                .strip()
                                .removesuffix(".md"))
         except TypeError:
-            raise ZettelkastenException(".last file is malformatted.")
+            raise ZettelkastenException(".last file is malformatted or empty.")
         except ValueError:
-            raise ZettelkastenException(".last file is malformatted.")
+            raise ZettelkastenException(".last file is malformatted or empty.")
 
         return last_content
 
