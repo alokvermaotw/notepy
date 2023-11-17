@@ -37,6 +37,6 @@ def color(text: Show,
     if context not in ["FG", "BG"]:
         raise ValueError("context can only be 'FG' or 'BG'.")
     if not no_color:
-        color = "_".join([COLOUR, context])
-        return Colors[color].colorize(text)
+        color_name = "_".join([COLOUR, context])
+        return Colors[color_name].colorize(text)
     return str(text)

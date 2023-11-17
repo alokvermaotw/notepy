@@ -135,24 +135,31 @@ class SubcommandsMixin:
                                        args.sort_by[0],
                                        args.descending,
                                        args.show)
-            if not args.no_header:
-                print()
-                header_length = len(", ".join(args.show))
-                header = ", ".join([color(col,
-                                          _COLORS.get(
-                                              col, "WHITE"),
-                                          no_color=args.no_color) for col in args.show])
-                print(header)
-                print("-"*header_length)
-            for res in results:
-                text = ", ".join([color(col,
-                                 _COLORS.get(args.show[index], "WHITE"),
-                                 no_color=args.no_color) for index, col in enumerate(res)])
-                print(text)
+            SubcommandsMixin._pretty_print(args.show,
+                                           results,
+                                           no_header=args.no_header,
+                                           no_color=args.no_color)
         except zk.ZettelkastenException as e:
             print(e)
         except DBManagerException as e:
             print(e)
+
+    @staticmethod
+    def _pretty_print(header_names: list[str],
+                      results: list[tuple[str]],
+                      no_header: bool = False,
+                      no_color: bool = False) -> None:
+        if not no_header:
+            print()
+            header_length = len(", ".join(header_names))
+            header = ", ".join([color(col, _COLORS.get(col, "WHITE"),
+                                      no_color=no_color) for col in header_names])
+            print(header)
+            print("-"*header_length)
+        for res in results:
+            text = ", ".join([color(col, _COLORS.get(header_names[index], "WHITE"),
+                             no_color=no_color) for index, col in enumerate(res)])
+            print(text)
 
     @staticmethod
     @spinner("Reindexing vault...", "Reindexing terminated successfully.")
@@ -316,6 +323,13 @@ class Cli(SubcommandsMixin):
         cli_args = self.parse(*args, **kwargs)
         if hasattr(cli_args, 'func'):
             cli_args.func(cli_args)
+        else:
+            my_zk = self._create_zettelkasten(cli_args)
+            results = my_zk.list_notes()
+            self._pretty_print(header_names=['title', 'zk_id'],
+                               results=results,
+                               no_header=False,
+                               no_color=False)
 
     def __call__(self, *args: Any, **kwargs: Any) -> None:
         cli_args = self.parse(*args, **kwargs)
