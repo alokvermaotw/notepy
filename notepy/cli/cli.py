@@ -7,6 +7,7 @@ from argparse import ArgumentParser, Namespace
 
 from notepy.zettelkasten.zettelkasten import Zettelkasten
 from notepy.zettelkasten import zettelkasten as zk
+from notepy.zettelkasten.notes import NoteException
 from notepy.wrappers.base_wrapper import WrapperException
 from notepy.wrappers.editor_wrapper import EditorException
 from notepy.utils import spinner, ask_for_confirmation
@@ -58,6 +59,8 @@ class SubcommandsMixin:
             print(e)
         except EditorException as e:
             print(e)
+        except NoteException as e:
+            print(e)
 
     @staticmethod
     def edit(args: Namespace) -> None:
@@ -74,6 +77,8 @@ class SubcommandsMixin:
         except WrapperException as e:
             print(e)
         except EditorException as e:
+            print(e)
+        except NoteException as e:
             print(e)
 
     @staticmethod
@@ -185,6 +190,8 @@ class SubcommandsMixin:
         except WrapperException as e:
             print(e)
         except EditorException as e:
+            print(e)
+        except NoteException as e:
             print(e)
 
     @staticmethod
