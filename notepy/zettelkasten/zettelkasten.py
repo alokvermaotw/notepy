@@ -208,15 +208,20 @@ class Zettelkasten(GitMixin):
 
         return new_note
 
-    def _check_unique_title(self, note_title: str) -> None:
+    def _check_unique_title(self, note_title: str, strict: bool = False) -> None:
         all_titles = [title[0] for title in self.dbmanager.get_title()]
         if note_title in all_titles:
-            raise TitleClashError("Title is already used in another note.")
+            if strict:
+                raise TitleClashError("Title is already used in another note.")
+            else:
+                print("Title is already in use in another note. Please consider changing it"
+                      "to something different, as it may cause amibguous links in your vault.")
 
     def new(self,
             title: str,
             author: Optional[str] = None,
-            confirmation: bool = False) -> None:
+            confirmation: bool = False,
+            strict: bool = False) -> None:
         """
         Create a new note and add it to the vault.
 
@@ -227,7 +232,7 @@ class Zettelkasten(GitMixin):
         # check if vault is a zettelkasten
         self._check_zettelkasten()
         # check title is unique
-        self._check_unique_title(title)
+        self._check_unique_title(title, strict=True)
 
         # if different author is provided, that takes precedence
         if author is None:
@@ -240,6 +245,17 @@ class Zettelkasten(GitMixin):
         new_note = self._edit_temporary_note(tmp_note, confirmation)
         if new_note is None:
             return None
+
+        # if id was changed, change it back.
+        if new_note.zk_id != tmp_note.zk_id:
+            print("The note ID looks different. It has been returned to its"
+                  "original value as it could create issues in your vault.")
+            new_note.zk_id = tmp_note.zk_id
+
+        # if title was changed, make sure it doesn't clash
+        # with other notes
+        if new_note.title != tmp_note.title:
+            self._check_unique_title(new_note.title, strict=strict)
 
         filename = Path(str(new_note.zk_id)).with_suffix(".md")
 
@@ -258,7 +274,7 @@ class Zettelkasten(GitMixin):
                              commit=self.autocommit,
                              push=self.autosync)
 
-    def update(self, zk_id: int, confirmation: bool = False) -> None:
+    def update(self, zk_id: int, confirmation: bool = False, strict: bool = False) -> None:
         """
         Update the note corresponding to the provded ID.
 
@@ -288,12 +304,17 @@ class Zettelkasten(GitMixin):
 
         # if id was changed, raise an error.
         if new_note.zk_id != zk_id:
-            raise IDChangedError("You cannot change the ID of an existing note.")
+            if strict:
+                raise IDChangedError("You cannot change the ID of an existing note.")
+            else:
+                print("The note ID looks different. It has been returned to its"
+                      "original value as it could create issues in your vault.")
+                new_note.zk_id = zk_id
 
         # if title was changed, make sure it doesn't clash
         # with other notes
         if new_note.title != note.title:
-            self._check_unique_title(new_note.title)
+            self._check_unique_title(new_note.title, strict=strict)
 
         # save the new note
         with open(note_path, "w") as f:
@@ -563,7 +584,8 @@ class Zettelkasten(GitMixin):
 
     def next(self, title: str,
              zk_id: Optional[int] = None,
-             confirmation: bool = False) -> None:
+             confirmation: bool = False,
+             strict: bool = False) -> None:
         """
         Create a new note that is the logical continuation
         of the last note or of the ID provided.
@@ -610,6 +632,17 @@ class Zettelkasten(GitMixin):
         new_note = self._edit_temporary_note(tmp_note, confirmation)
         if new_note is None:
             return None
+
+        # if id was changed, change it back.
+        if new_note.zk_id != tmp_note.zk_id:
+            print("The note ID looks different. It has been returned to its"
+                  "original value as it could create issues in your vault.")
+            new_note.zk_id = tmp_note.zk_id
+
+        # if title was changed, make sure it doesn't clash
+        # with other notes
+        if new_note.title != tmp_note.title:
+            self._check_unique_title(new_note.title, strict=strict)
 
         new_filename = Path(str(new_note.zk_id)).with_suffix(".md")
 

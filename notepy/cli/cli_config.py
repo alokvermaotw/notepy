@@ -34,6 +34,10 @@ _COMMANDS: MutableMapping[str, Any] = {
             "--no-confirmation": {
                 "help": "Whether to ask for confirmation before saving.",
                 "action": "store_false"
+            },
+            "--strict": {
+                "help": "Whether to perform strict checks and raise errors",
+                "action": "store_true"
             }
         }
     },
@@ -48,6 +52,10 @@ _COMMANDS: MutableMapping[str, Any] = {
             "--no-confirmation": {
                 "help": "Whether to ask for confirmation before saving.",
                 "action": "store_false"
+            },
+            "--strict": {
+                "help": "Whether to perform strict checks and raise errors",
+                "action": "store_true"
             }
         }
     },
@@ -184,6 +192,10 @@ _COMMANDS: MutableMapping[str, Any] = {
             "--no-confirmation": {
                 "help": "Whether to ask for confirmation.",
                 "action": "store_false"
+            },
+            "--strict": {
+                "help": "Whether to perform strict checks and raise errors",
+                "action": "store_true"
             }
         }
     },

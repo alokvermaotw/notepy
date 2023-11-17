@@ -48,7 +48,8 @@ class SubcommandsMixin:
             my_zk = SubcommandsMixin._create_zettelkasten(args)
             my_zk.new(args.title[0],
                       author=args.author[0],
-                      confirmation=args.no_confirmation)
+                      confirmation=args.no_confirmation,
+                      strict=args.strict)
         except zk.TitleClashError as e:
             print(e)
         except zk.ZettelkastenException as e:
@@ -66,7 +67,8 @@ class SubcommandsMixin:
             if zk_id == -1:
                 zk_id = my_zk.get_last()
             my_zk.update(zk_id,
-                         confirmation=args.no_confirmation)
+                         confirmation=args.no_confirmation,
+                         strict=args.strict)
         except zk.ZettelkastenException as e:
             print(e)
         except WrapperException as e:
@@ -176,7 +178,8 @@ class SubcommandsMixin:
             my_zk = SubcommandsMixin._create_zettelkasten(args)
             my_zk.next(args.title[0],
                        args.zk_id[0],
-                       args.no_confirmation)
+                       args.no_confirmation,
+                       args.strict)
         except zk.ZettelkastenException as e:
             print(e)
         except WrapperException as e:
@@ -324,12 +327,18 @@ class Cli(SubcommandsMixin):
         if hasattr(cli_args, 'func'):
             cli_args.func(cli_args)
         else:
-            my_zk = self._create_zettelkasten(cli_args)
-            results = my_zk.list_notes()
-            self._pretty_print(header_names=['title', 'zk_id'],
-                               results=results,
-                               no_header=False,
-                               no_color=False)
+            try:
+                my_zk = self._create_zettelkasten(cli_args)
+                results = my_zk.list_notes()
+                self._pretty_print(header_names=['title', 'zk_id'],
+                                   results=results,
+                                   no_header=False,
+                                   no_color=False)
+            except zk.ZettelkastenException:
+                print("You haven't initialized the Zettelkasten.\n"
+                      "If this is your first time with notepy, ",
+                      "you can look up the commands and flags "
+                      "with `notepy --help`")
 
     def __call__(self, *args: Any, **kwargs: Any) -> None:
         cli_args = self.parse(*args, **kwargs)
