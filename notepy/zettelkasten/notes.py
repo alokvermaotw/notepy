@@ -66,7 +66,8 @@ class BaseNote(ABC):
              delimiter: str = "---",
              special_names: Collection[str] = ("date", "tags", 'zk_id'),
              header: str = "# ",
-             link_del: tuple[str, str] = ('[[', ']]')) -> Note:
+             link_del: tuple[str, str] = ('[[', ']]'),
+             strict: bool = False) -> Note:
         """
         Read a note from a file.
 
@@ -126,7 +127,8 @@ class Note(BaseNote):
              delimiter: str = "---",
              special_names: Collection[str] = ("date", "tags", 'zk_id'),
              header: str = "# ",
-             link_del: tuple[str, str] = ('[[', ']]')) -> Note:
+             link_del: tuple[str, str] = ('[[', ']]'),
+             strict: bool = False) -> Note:
         """
         Read a note from a file.
 
@@ -153,7 +155,10 @@ class Note(BaseNote):
 
         # raise exception if first header is different from title
         if body_meta['header'][0].removeprefix(header).strip() != frontmatter_meta['title']:
-            raise NoteException("First header and title must be the same.")
+            if strict:
+                raise NoteException("First header and title must be the same.")
+            else:
+                print(f"First header and title of note {frontmatter_meta['zk_id']} do not coincide.")
 
         links = body_meta['links']
         body = "\n".join(body_meta['body']).strip()

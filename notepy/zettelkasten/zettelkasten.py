@@ -166,7 +166,8 @@ class Zettelkasten(GitMixin):
     # TODO: use a higher level editor_wrapper instead of hx
     def _edit_temporary_note(self,
                              note: Note,
-                             confirmation: bool = False) -> Note | None:
+                             confirmation: bool = False,
+                             strict: bool = False) -> Note | None:
         """
         Edit a note in a temporary file. The temporary file is created
         in the tmp so not to interfere with git. The temporary
@@ -201,7 +202,8 @@ class Zettelkasten(GitMixin):
                                           delimiter=self.delimiter,
                                           special_names=self.special_values,
                                           header=self.header,
-                                          link_del=self.link_del)
+                                          link_del=self.link_del,
+                                          strict=strict)
         # ask for confirmation
         if confirmation and not ask_for_confirmation("Save note?"):
             return None
@@ -214,8 +216,8 @@ class Zettelkasten(GitMixin):
             if strict:
                 raise TitleClashError("Title is already used in another note.")
             else:
-                print("Title is already in use in another note. Please consider changing it"
-                      "to something different, as it may cause amibguous links in your vault.")
+                print("Title is already in use in another note. Please consider changing it\n"
+                      "to something different, as it may cause ambiguous links in your vault.")
 
     def new(self,
             title: str,
@@ -242,13 +244,13 @@ class Zettelkasten(GitMixin):
         tmp_note = self.note_obj.new(title, author)
 
         # create new note
-        new_note = self._edit_temporary_note(tmp_note, confirmation)
+        new_note = self._edit_temporary_note(tmp_note, confirmation, strict)
         if new_note is None:
             return None
 
         # if id was changed, change it back.
         if new_note.zk_id != tmp_note.zk_id:
-            print("The note ID looks different. It has been returned to its"
+            print("The note ID looks different. It has been returned to its\n"
                   "original value as it could create issues in your vault.")
             new_note.zk_id = tmp_note.zk_id
 
@@ -298,7 +300,7 @@ class Zettelkasten(GitMixin):
                                   header=self.header,
                                   link_del=self.link_del)
 
-        new_note = self._edit_temporary_note(note, confirmation=confirmation)
+        new_note = self._edit_temporary_note(note, confirmation=confirmation, strict=strict)
         if new_note is None:
             return None
 
@@ -307,7 +309,7 @@ class Zettelkasten(GitMixin):
             if strict:
                 raise IDChangedError("You cannot change the ID of an existing note.")
             else:
-                print("The note ID looks different. It has been returned to its"
+                print("The note ID looks different. It has been returned to its\n"
                       "original value as it could create issues in your vault.")
                 new_note.zk_id = zk_id
 
@@ -629,13 +631,13 @@ class Zettelkasten(GitMixin):
         tmp_note.body += "\n".join(["- "+f"[[{link}]]" for link in links])
 
         # create new note
-        new_note = self._edit_temporary_note(tmp_note, confirmation)
+        new_note = self._edit_temporary_note(tmp_note, confirmation, strict)
         if new_note is None:
             return None
 
         # if id was changed, change it back.
         if new_note.zk_id != tmp_note.zk_id:
-            print("The note ID looks different. It has been returned to its"
+            print("The note ID looks different. It has been returned to its\n"
                   "original value as it could create issues in your vault.")
             new_note.zk_id = tmp_note.zk_id
 
