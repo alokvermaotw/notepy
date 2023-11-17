@@ -16,15 +16,16 @@ CLI note manager for Zettelkasten-like note-taking.
 - [x] Add `last_changed_time` in sqlite database
 - [x] Support for tags
 - [x] Support for backlinks
-- [ ] Search for tags, links, words, title, date
+- [x] Search for tags, links, words, title, date
 - [x] SQLite caching of indexed notes
-- [-] Scratchpad for temporary notes
 - [x] Support for reindexing
-- [-] Support for scratchpad where to save notes not ready
+- [ ] REPL
+- [ ] interactive search
+- [ ] Find broken links
+- [ ] Support for using external or internal tool for fuzzy finding/searching
 - [ ] Support for TOML configuration
-- [ ] Support for using external or internal tool for fuzzy finding/searching (no dependencies)
 - [ ] Knowledge graph creation
-- [ ] Plugin system
+- [ ] Plugin system?
 
 ## Plugins
 - [ ] AI for categorisation and grouping of notes
