@@ -15,20 +15,18 @@ class OddKeys(IntEnum):
 
 
 # TODO: add window to the right containing metadata information if there is enough space
-# TODO: Strict checks on overflow horizontally and vertically
-# TODO: Implement scroll for when results overflow window
 # TODO: implement tag and link filtering
-# TODO: left and right arrow catch
-
 class Interactive:
     def __init__(self, zk: Zettelkasten):
         self.w = curses.initscr()
         self.zk = zk
         self.cursor_pos = 0
+        self.relative_cursor = 0
         self.relative_start = 0
         self.prev_relative_start = 0
         curses.start_color()
         curses.init_pair(1, curses.COLOR_BLUE, curses.COLOR_BLACK)
+        curses.init_pair(2, curses.COLOR_CYAN, curses.COLOR_BLACK)
 
     def print_results(self, results, pos):
         curses.curs_set(False)
@@ -75,13 +73,15 @@ class Interactive:
                 pos = 0
             case curses.KEY_LEFT:
                 # check cursor position
-                self.cursor_pos = self.check_cursor_pos(text, self.cursor_pos-1)
+                self.cursor_pos = (self.cursor_pos-1) % (len(text)+1)
             case curses.KEY_RIGHT:
                 # check cursor position
-                self.cursor_pos = self.check_cursor_pos(text, self.cursor_pos+1)
+                self.cursor_pos = (self.cursor_pos+1) % (len(text)+1)
             case _:
                 text = text[:self.cursor_pos] + chr(c) + text[self.cursor_pos:]
-                self.cursor_pos += 1
+                text = text[:curses.COLS-1]
+                if self.cursor_pos < curses.COLS-1:
+                    self.cursor_pos += 1
                 pos = 0
 
         return text, pos, endit, redraw
@@ -109,7 +109,7 @@ class Interactive:
 
         return pos, redraw
 
-    def draw_cursor(self, pos, old_pos):
+    def draw_pointer(self, pos, old_pos):
         if (cancel_pos := old_pos-self.prev_relative_start+POSITION_OFFSET) < curses.LINES:
             self.w.addstr(cancel_pos, 0, " ")
         self.prev_relative_start = self.relative_start
@@ -153,8 +153,8 @@ class Interactive:
         # inital position of the cursor
         pos = 0
         self.print_results(result_list, pos)
-        self.draw_cursor(pos, 0)
-        self.w.addstr(0, 0, text)
+        self.draw_pointer(pos, 0)
+        self.w.addstr(0, 0, text, curses.color_pair(2))
         # break the loop when pressing ESC or C-c
         while (c := self.w.getch()) != OddKeys.ESCAPE:
             old_pos = pos
@@ -178,9 +178,9 @@ class Interactive:
                 padded_text = self.pad_text(text)
                 self.w.addstr(0, 0, padded_text)
 
-            self.draw_cursor(pos, old_pos)
+            self.draw_pointer(pos, old_pos)
             # put the cursor at the end of input
-            self.w.addstr(0, self.cursor_pos, "")
+            self.w.move(0, self.cursor_pos)
 
         # if escape was pressed and there are results, return
         # the note ID.
