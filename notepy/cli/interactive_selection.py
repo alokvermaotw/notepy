@@ -1,5 +1,6 @@
 import curses
 from enum import IntEnum
+import re
 
 from notepy.zettelkasten.zettelkasten import Zettelkasten
 
@@ -16,6 +17,8 @@ class OddKeys(IntEnum):
 
 # TODO: add window to the right containing metadata information if there is enough space
 # TODO: implement tag and link filtering
+# TODO: implement multiselection
+# TODO: comment!
 class Interactive:
     def __init__(self, zk: Zettelkasten):
         self.w = curses.initscr()
@@ -120,8 +123,22 @@ class Interactive:
         self.w.addstr(pos-self.relative_start+POSITION_OFFSET, 0, ">", curses.color_pair(1))
 
     @staticmethod
-    def parse_text(text):
-        return text
+    def parse_text(text: str) -> tuple[str, list[str], list[str]]:
+        tag_pattern = re.compile(r"#[^ ]+", re.IGNORECASE)
+        link_pattern = re.compile(r"\[\[.+?\]\]")
+        raw_tags = re.findall(tag_pattern, text)
+        raw_links = re.findall(link_pattern, text)
+        tags = []
+        links = []
+        for tag in raw_tags:
+            text = text.replace(tag, "")
+            tags.append("#%" + tag[1:] + "%")
+        for link in raw_links:
+            text = text.replace(link, "")
+            links.append("%"+link.removeprefix('[[').removesuffix(']]')+"%")
+        tags = tags if tags else None
+        links = links if links else None
+        return text.strip(), tags, links
 
     @staticmethod
     def pad_text(text):
@@ -172,9 +189,18 @@ class Interactive:
             # only redraw results if input changed
             if new_text != text or redraw_pos or redraw_key:
                 # parse the text to intercept tag or link filters
-                text = self.parse_text(new_text)
+                parsed_text, tags, links = self.parse_text(new_text)
+                text = new_text
                 # update list of notes
-                result_list = self.zk.list_notes(title=[f"%{text}%"])
+                with open("log", "w") as f:
+                    f.write(str(text))
+                    f.write("\n")
+                    f.write(str(tags))
+                    f.write("\n")
+                    f.write(str(links))
+                result_list = self.zk.list_notes(title=[f"%{parsed_text}%"],
+                                                 tags=tags,
+                                                 links=links)
 
                 self.print_results(result_list, pos)
 
