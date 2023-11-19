@@ -21,7 +21,7 @@ CLI note manager for Zettelkasten-like note-taking.
 - [x] Support for reindexing
   - [ ] support strict mode for reindexing. Perform thorough check of notes validity.
 - [ ] REPL
-- [ ] interactive search
+- [x] interactive search
 - [ ] Find broken links
 - [ ] Support for using external or internal tool for fuzzy finding/searching
 - [ ] Support for TOML configuration
