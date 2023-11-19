@@ -368,20 +368,13 @@ class Cli(SubcommandsMixin):
         if hasattr(cli_args, 'func'):
             cli_args.func(cli_args)
         else:
-            try:
-                my_zk = self._create_zettelkasten(cli_args)
-                results = my_zk.list_notes()
-                self._pretty_print(header_names=['title', 'zk_id'],
-                                   results=results,
-                                   no_header=False,
-                                   no_color=False)
-            except zk.ZettelkastenException:
-                print("You haven't initialized the Zettelkasten.\n"
-                      "If this is your first time with notepy, ",
-                      "you can look up the commands and flags "
-                      "with `notepy --help`")
+            cli_args = self.global_parser.parse_args(['--help'])
+            print(cli_args.help)
 
     def __call__(self, *args: Any, **kwargs: Any) -> None:
         cli_args = self.parse(*args, **kwargs)
         if hasattr(cli_args, 'func'):
             cli_args.func(cli_args)
+        else:
+            cli_args = self.global_parser.parse_args(['--help'])
+            print(cli_args.help)
