@@ -1,6 +1,7 @@
 import curses
-from notepy.zettelkasten.zettelkasten import Zettelkasten
 from enum import IntEnum
+
+from notepy.zettelkasten.zettelkasten import Zettelkasten
 
 
 ESCAPE_DELAY = 50
@@ -16,35 +17,28 @@ class OddKeys(IntEnum):
 # TODO: add window to the right containing metadata information if there is enough space
 # TODO: Strict checks on overflow horizontally and vertically
 # TODO: Implement scroll for when results overflow window
+# TODO: implement tag and link filtering
+# TODO: left and right arrow catch
 
 class Interactive:
-    def __init__(self, zk: Zettelkasten, no_color: bool = False):
+    def __init__(self, zk: Zettelkasten):
         self.w = curses.initscr()
-        self.no_color = no_color
         self.zk = zk
         curses.start_color()
-        curses.init_pair(1, curses.COLOR_CYAN, curses.COLOR_BLACK)
-        curses.init_pair(2, curses.COLOR_BLUE, curses.COLOR_BLACK)
+        curses.init_pair(1, curses.COLOR_BLUE, curses.COLOR_BLACK)
 
-    def print_results(self, results):
+    def print_results(self, results, pos):
         curses.curs_set(False)
         template = "  {}"
-        template = self.pad_text(template)
-        text = self.pad_results([template.format(title) for title, _ in results])
         for i in range(POSITION_OFFSET, curses.LINES):
-            if self.no_color:
-                self.w.addstr(i, 0, text[i-POSITION_OFFSET])
-            else:
-                self.w.addstr(i, 0, text[i-POSITION_OFFSET], curses.color_pair(1))
+            text = self.pad_results(i, results, template)
+            self.w.addstr(i, 0, text)
             self.w.refresh()
         curses.curs_set(True)
 
     def draw_cursor(self, pos, old_pos):
         self.w.addstr(old_pos+POSITION_OFFSET, 0, " ")
-        if self.no_color:
-            self.w.addstr(pos+POSITION_OFFSET, 0, ">")
-        else:
-            self.w.addstr(pos+POSITION_OFFSET, 0, ">", curses.color_pair(2))
+        self.w.addstr(pos+POSITION_OFFSET, 0, ">", curses.color_pair(1))
 
     @staticmethod
     def catch_key(c, text, pos):
@@ -88,13 +82,14 @@ class Interactive:
 
         return padded_text[:curses.COLS-1]
 
-    @staticmethod
-    def pad_results(results):
-        length = len(results)
-        length_to_fill = curses.LINES - length if length < curses.LINES else 0
-        results += [" "*(curses.COLS-1) for _ in range(length_to_fill)]
+    def pad_results(self, draw_pos, results, template):
+        if draw_pos < len(results)+POSITION_OFFSET:
+            title = results[draw_pos-POSITION_OFFSET][0]
+            text = self.pad_text(template.format(title))
+        else:
+            text = self.pad_text(" ")
 
-        return results
+        return text
 
     def _main(self):
         # clear screen
@@ -109,7 +104,7 @@ class Interactive:
         result_list = self.zk.list_notes(title=[f"%{text}%"])
         # inital position of the cursor
         pos = 0
-        self.print_results(result_list)
+        self.print_results(result_list, pos)
         self.draw_cursor(pos, 0)
         self.w.addstr(0, 0, text)
         # break the loop when pressing ESC or C-c
@@ -127,7 +122,7 @@ class Interactive:
                 # update list of notes
                 result_list = self.zk.list_notes(title=[f"%{text}%"])
 
-                self.print_results(result_list)
+                self.print_results(result_list, pos)
 
                 # pad the text
                 padded_text = self.pad_text(text)
