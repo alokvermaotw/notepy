@@ -215,10 +215,8 @@ class Zettelkasten(GitMixin):
                       "original value as it could create issues in your vault.")
                 new_note.zk_id = note.zk_id
 
-        # if title was changed, make sure it doesn't clash
-        # with other notes
-        if new_note.title != note.title:
-            self._check_unique_title(new_note.title, strict=strict)
+        # Make sure title doesn't clash with other notes
+        self._check_unique_title(new_note.title, strict=strict)
 
         # ask for confirmation
         if confirmation and not ask_for_confirmation("Save note?"):
@@ -252,8 +250,6 @@ class Zettelkasten(GitMixin):
         """
         # check if vault is a zettelkasten
         self._check_zettelkasten()
-        # check title is unique
-        self._check_unique_title(title, strict=True)
 
         # if different author is provided, that takes precedence
         if author is None:
