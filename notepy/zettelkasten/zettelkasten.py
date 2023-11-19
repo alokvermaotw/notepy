@@ -211,12 +211,13 @@ class Zettelkasten(GitMixin):
             if strict:
                 raise IDChangedError("You cannot change the ID of an existing note.")
             else:
+                new_note.zk_id = note.zk_id
                 print("The note ID looks different. It has been returned to its "
                       "original value as it could create issues in your vault.")
-                new_note.zk_id = note.zk_id
 
         # Make sure title doesn't clash with other notes
-        self._check_unique_title(new_note.title, strict=strict)
+        if new_note.title != note.title:
+            self._check_unique_title(new_note.title, strict=strict)
 
         # ask for confirmation
         if confirmation and not ask_for_confirmation("Save note?"):
