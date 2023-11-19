@@ -124,8 +124,8 @@ class Interactive:
 
     @staticmethod
     def parse_text(text: str) -> tuple[str, list[str], list[str]]:
-        tag_pattern = re.compile(r"#[^ ]+", re.IGNORECASE)
-        link_pattern = re.compile(r"\[\[.+?\]\]")
+        tag_pattern = re.compile(r"#[^ ]*", re.IGNORECASE)
+        link_pattern = re.compile(r"\[\[.*?\]\]")
         raw_tags = re.findall(tag_pattern, text)
         raw_links = re.findall(link_pattern, text)
         tags = []
@@ -192,12 +192,6 @@ class Interactive:
                 parsed_text, tags, links = self.parse_text(new_text)
                 text = new_text
                 # update list of notes
-                with open("log", "w") as f:
-                    f.write(str(text))
-                    f.write("\n")
-                    f.write(str(tags))
-                    f.write("\n")
-                    f.write(str(links))
                 result_list = self.zk.list_notes(title=[f"%{parsed_text}%"],
                                                  tags=tags,
                                                  links=links)
