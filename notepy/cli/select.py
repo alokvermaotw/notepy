@@ -19,6 +19,13 @@ class OddKeys(IntEnum):
     ALT_ENTER_2 = 13
 
 
+# TODO: several optimizations - store old results and reuse them when no change to text (moving arrow)
+# TODO: draw arrow independently from results
+# TODO: add window to the right containing metadata information if there is enough space
+# TODO: general refactor into class
+# TODO: Strict checks on overflow horizontally and vertically
+# TODO: Implement scroll for when results overflow window
+
 def pretty_print(results, stdscr, pos=0):
     curses.curs_set(False)
     template = "  {}"
