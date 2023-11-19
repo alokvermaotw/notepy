@@ -13,6 +13,7 @@ from notepy.wrappers.editor_wrapper import EditorException
 from notepy.utils import spinner, ask_for_confirmation
 from notepy.zettelkasten.sql import DBManagerException
 from notepy.cli.colors import color
+from notepy.cli.interactive_selection import Interactive
 
 
 _COLORS = {
@@ -66,9 +67,9 @@ class SubcommandsMixin:
     def edit(args: Namespace) -> None:
         try:
             my_zk = SubcommandsMixin._create_zettelkasten(args)
-            zk_id = args.zk_id[0]
-            if zk_id == -1:
-                zk_id = my_zk.get_last()
+            zk_id = SubcommandsMixin._get_zk_id(args, my_zk)
+            if zk_id is None:
+                return
             my_zk.update(zk_id,
                          confirmation=args.no_confirmation,
                          strict=args.strict)
@@ -85,9 +86,16 @@ class SubcommandsMixin:
     def open(args: Namespace) -> None:
         try:
             my_zk = SubcommandsMixin._create_zettelkasten(args)
-            zk_id = [my_zk.get_last()
-                     if zk_id == -1
-                     else zk_id for zk_id in args.zk_id]
+            if len(args.zk_id) <= 1:
+                zk_id = SubcommandsMixin._get_zk_id(args, my_zk)
+                if zk_id is None:
+                    return
+                else:
+                    zk_id = [zk_id]
+            else:
+                zk_id = [my_zk.get_last()
+                         if zk_id == -1
+                         else zk_id for zk_id in args.zk_id]
             my_zk.open(zk_id)
         except zk.ZettelkastenException as e:
             print(e)
@@ -99,12 +107,8 @@ class SubcommandsMixin:
     @staticmethod
     def delete(args: Namespace) -> None:
         my_zk = SubcommandsMixin._create_zettelkasten(args)
-        try:
-            zk_id = args.zk_id[0]
-            if zk_id == -1:
-                zk_id = my_zk.get_last()
-        except zk.ZettelkastenException as e:
-            print(e)
+        zk_id = SubcommandsMixin._get_zk_id(args, my_zk)
+        if zk_id is None:
             return
 
         # we need to ask for confirmation here since it would
@@ -112,7 +116,7 @@ class SubcommandsMixin:
         if args.no_confirmation and not ask_for_confirmation("Delete note(s)?"):
             return None
 
-        if len(args.zk_id) == 1:
+        if len(args.zk_id) <= 1:
             # single note deletion
             @spinner("Deleting note...", "Deleted note {}.", format=True)
             def decorated_delete():
@@ -129,14 +133,11 @@ class SubcommandsMixin:
 
     @staticmethod
     def print(args: Namespace) -> None:
-        try:
-            my_zk = SubcommandsMixin._create_zettelkasten(args)
-            zk_id = args.zk_id[0]
-            if zk_id == -1:
-                zk_id = my_zk.get_last()
-            print(my_zk.print_note(zk_id))
-        except zk.ZettelkastenException as e:
-            print(e)
+        my_zk = SubcommandsMixin._create_zettelkasten(args)
+        zk_id = SubcommandsMixin._get_zk_id(args, my_zk)
+        if zk_id is None:
+            return
+        print(my_zk.print_note(zk_id))
 
     @staticmethod
     def list(args: Namespace) -> None:
@@ -214,9 +215,9 @@ class SubcommandsMixin:
     @staticmethod
     def info(args: Namespace) -> None:
         my_zk = SubcommandsMixin._create_zettelkasten(args)
-        zk_id = args.zk_id[0]
-        if zk_id == -1:
-            zk_id = my_zk.get_last()
+        zk_id = SubcommandsMixin._get_zk_id(args, my_zk)
+        if zk_id is None:
+            return
         try:
             result = my_zk.get_metadata(str(zk_id))
             for col in result:
@@ -252,6 +253,25 @@ class SubcommandsMixin:
     @staticmethod
     def not_implemented(args: Namespace) -> None:
         print("Function not implemented.")
+
+    @staticmethod
+    def _get_zk_id(args: Namespace, my_zk: Zettelkasten) -> None:
+        if args.zk_id is None or not args.zk_id:
+            loop = Interactive(my_zk)
+            zk_id = loop.run()
+        else:
+            try:
+                if isinstance(args.zk_id, list):
+                    zk_id = args.zk_id[0]
+                else:
+                    zk_id = args.zk_id
+                if zk_id == -1:
+                    zk_id = my_zk.get_last()
+            except zk.ZettelkastenException as e:
+                print(e)
+                return
+
+        return zk_id
 
 
 @dataclass
