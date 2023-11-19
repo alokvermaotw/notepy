@@ -25,6 +25,8 @@ class Interactive:
         self.w = curses.initscr()
         self.zk = zk
         self.cursor_pos = 0
+        self.relative_start = 0
+        self.prev_relative_start = 0
         curses.start_color()
         curses.init_pair(1, curses.COLOR_BLUE, curses.COLOR_BLACK)
 
@@ -32,14 +34,10 @@ class Interactive:
         curses.curs_set(False)
         template = "  {}"
         for i in range(POSITION_OFFSET, curses.LINES):
-            text = self.pad_results(i, results, template)
+            text = self.pad_results(i+self.relative_start, results, template)
             self.w.addstr(i, 0, text)
             self.w.refresh()
         curses.curs_set(True)
-
-    def draw_cursor(self, pos, old_pos):
-        self.w.addstr(old_pos+POSITION_OFFSET, 0, " ")
-        self.w.addstr(pos+POSITION_OFFSET, 0, ">", curses.color_pair(1))
 
     @staticmethod
     def check_cursor_pos(text, pos):
@@ -53,6 +51,7 @@ class Interactive:
 
     def catch_key(self, c, text, pos):
         endit = False
+        redraw = False
         match c:
             case curses.KEY_ENTER | OddKeys.ALT_ENTER_1 | OddKeys.ALT_ENTER_2:
                 endit = True
@@ -60,6 +59,12 @@ class Interactive:
                 pos -= 1
             case curses.KEY_DOWN:
                 pos += 1
+            case curses.KEY_RESIZE:
+                curses.resize_term(*self.w.getmaxyx())
+                current_position = pos - self.relative_start + POSITION_OFFSET
+                if current_position > curses.LINES:
+                    self.relative_start = pos - curses.LINES + POSITION_OFFSET
+                redraw = True
             case curses.KEY_BACKSPACE:
                 cursor_pos = self.check_cursor_pos(text, self.cursor_pos-1)
                 text = text[:cursor_pos] + text[cursor_pos+1:] if self.cursor_pos > 0 else text
@@ -79,16 +84,36 @@ class Interactive:
                 self.cursor_pos += 1
                 pos = 0
 
-        return text, pos, endit
+        return text, pos, endit, redraw
 
-    @staticmethod
-    def check_pos(pos, results):
+    def check_pos(self, pos, results):
+        length = len(results)
+        redraw = False
         if pos < 0:
-            pos = len(results) - 1
-        if pos > len(results) - 1:
+            pos = length - 1
+            if length >= curses.LINES:
+                self.relative_start = length - (curses.LINES - POSITION_OFFSET)
+                redraw = True
+            else:
+                self.relative_start = 0
+        elif pos > length - 1:
             pos = 0
+            self.relative_start = 0
+            redraw = True
+        elif pos - self.relative_start >= curses.LINES - POSITION_OFFSET:
+            self.relative_start += 1
+            redraw = True
+        elif pos - self.relative_start < 0:
+            self.relative_start -= 1
+            redraw = True
 
-        return pos
+        return pos, redraw
+
+    def draw_cursor(self, pos, old_pos):
+        if (cancel_pos := old_pos-self.prev_relative_start+POSITION_OFFSET) < curses.LINES:
+            self.w.addstr(cancel_pos, 0, " ")
+        self.prev_relative_start = self.relative_start
+        self.w.addstr(pos-self.relative_start+POSITION_OFFSET, 0, ">", curses.color_pair(1))
 
     @staticmethod
     def parse_text(text):
@@ -134,12 +159,14 @@ class Interactive:
         while (c := self.w.getch()) != OddKeys.ESCAPE:
             old_pos = pos
             # update text and pos based on key pressed
-            new_text, pos, endit = self.catch_key(c, text, pos)
+            new_text, pos, endit, redraw_key = self.catch_key(c, text, pos)
             if endit:
                 break
 
+            # enforce checks on pos
+            pos, redraw_pos = self.check_pos(pos, result_list)
             # only redraw results if input changed
-            if new_text != text:
+            if new_text != text or redraw_pos or redraw_key:
                 # parse the text to intercept tag or link filters
                 text = self.parse_text(new_text)
                 # update list of notes
@@ -151,8 +178,6 @@ class Interactive:
                 padded_text = self.pad_text(text)
                 self.w.addstr(0, 0, padded_text)
 
-            # enforce checks on pos
-            pos = self.check_pos(pos, result_list)
             self.draw_cursor(pos, old_pos)
             # put the cursor at the end of input
             self.w.addstr(0, self.cursor_pos, "")
