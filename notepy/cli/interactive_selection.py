@@ -65,12 +65,16 @@ class Interactive:
                 redraw = True
             case curses.KEY_BACKSPACE:
                 cursor_pos = self.check_cursor_pos(text, self.cursor_pos-1)
-                text = text[:cursor_pos] + text[cursor_pos+1:] if self.cursor_pos > 0 else text
+                new_text = text[:cursor_pos] + text[cursor_pos+1:] if self.cursor_pos > 0 else text
                 self.cursor_pos = cursor_pos
-                pos = 0
+                if text != new_text:
+                    pos = 0
+                text = new_text
             case curses.KEY_DC:
-                text = text[:self.cursor_pos] + text[self.cursor_pos+1:] if self.cursor_pos <= len(text) else text
-                pos = 0
+                new_text = text[:self.cursor_pos] + text[self.cursor_pos+1:] if self.cursor_pos <= len(text) else text
+                if text != new_text:
+                    pos = 0
+                text = new_text
             case curses.KEY_LEFT:
                 # check cursor position
                 self.cursor_pos = (self.cursor_pos-1) % (len(text)+1)
@@ -91,7 +95,7 @@ class Interactive:
         redraw = False
         if pos < 0:
             pos = length - 1
-            if length >= curses.LINES:
+            if length >= curses.LINES - POSITION_OFFSET:
                 self.relative_start = length - (curses.LINES - POSITION_OFFSET)
                 redraw = True
             else:
@@ -176,7 +180,7 @@ class Interactive:
 
                 # pad the text
                 padded_text = self.pad_text(text)
-                self.w.addstr(0, 0, padded_text)
+                self.w.addstr(0, 0, padded_text, curses.color_pair(2))
 
             self.draw_pointer(pos, old_pos)
             # put the cursor at the end of input
