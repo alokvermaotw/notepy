@@ -24,6 +24,7 @@ class Interactive:
     def __init__(self, zk: Zettelkasten):
         self.w = curses.initscr()
         self.zk = zk
+        self.cursor_pos = 0
         curses.start_color()
         curses.init_pair(1, curses.COLOR_BLUE, curses.COLOR_BLACK)
 
@@ -41,20 +42,38 @@ class Interactive:
         self.w.addstr(pos+POSITION_OFFSET, 0, ">", curses.color_pair(1))
 
     @staticmethod
-    def catch_key(c, text, pos):
+    def check_cursor_pos(text, pos):
+        length = len(text)
+        if pos < 0:
+            pos = 0
+        if pos > length:
+            pos = length
+
+        return pos
+
+    def catch_key(self, c, text, pos):
         endit = False
         match c:
-            case curses.KEY_BACKSPACE:
-                text = text[:-1]
-                pos = 0
             case curses.KEY_ENTER | OddKeys.ALT_ENTER_1 | OddKeys.ALT_ENTER_2:
                 endit = True
             case curses.KEY_UP:
                 pos -= 1
             case curses.KEY_DOWN:
                 pos += 1
+            case curses.KEY_BACKSPACE:
+                cursor_pos = self.check_cursor_pos(text, self.cursor_pos-1)
+                text = text[:cursor_pos] + text[cursor_pos+1:] if self.cursor_pos > 0 else text
+                self.cursor_pos = cursor_pos
+                pos = 0
+            case curses.KEY_LEFT:
+                # check cursor position
+                self.cursor_pos = self.check_cursor_pos(text, self.cursor_pos-1)
+            case curses.KEY_RIGHT:
+                # check cursor position
+                self.cursor_pos = self.check_cursor_pos(text, self.cursor_pos+1)
             case _:
-                text += chr(c)
+                text = text[:self.cursor_pos] + chr(c) + text[self.cursor_pos:]
+                self.cursor_pos += 1
                 pos = 0
 
         return text, pos, endit
@@ -82,12 +101,13 @@ class Interactive:
 
         return padded_text[:curses.COLS-1]
 
-    def pad_results(self, draw_pos, results, template):
+    @staticmethod
+    def pad_results(draw_pos, results, template):
         if draw_pos < len(results)+POSITION_OFFSET:
             title = results[draw_pos-POSITION_OFFSET][0]
-            text = self.pad_text(template.format(title))
+            text = Interactive.pad_text(template.format(title))
         else:
-            text = self.pad_text(" ")
+            text = Interactive.pad_text(" ")
 
         return text
 
@@ -132,7 +152,7 @@ class Interactive:
             pos = self.check_pos(pos, result_list)
             self.draw_cursor(pos, old_pos)
             # put the cursor at the end of input
-            self.w.addstr(0, len(text), "")
+            self.w.addstr(0, self.cursor_pos, "")
 
         # if escape was pressed and there are results, return
         # the note ID.
