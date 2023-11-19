@@ -250,6 +250,9 @@ class Zettelkasten(GitMixin):
         """
         # check if vault is a zettelkasten
         self._check_zettelkasten()
+        # check if title is unique
+        if strict:
+            self._check_unique_title(title, strict=strict)
 
         # if different author is provided, that takes precedence
         if author is None:
