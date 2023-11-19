@@ -187,7 +187,7 @@ _COMMANDS: MutableMapping[str, Any] = {
                 "help": "ID of the note to continue from.",
                 "nargs": 1,
                 "type": int,
-                "default": [None]
+                "default": []
             },
             "--no-confirmation": {
                 "help": "Whether to ask for confirmation.",

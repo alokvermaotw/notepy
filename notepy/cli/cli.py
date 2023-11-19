@@ -192,8 +192,11 @@ class SubcommandsMixin:
     def next(args: Namespace) -> None:
         try:
             my_zk = SubcommandsMixin._create_zettelkasten(args)
+            zk_id = SubcommandsMixin._get_zk_id(args, my_zk)
+            if zk_id is None:
+                return
             my_zk.next(args.title[0],
-                       args.zk_id[0],
+                       zk_id,
                        args.no_confirmation,
                        args.strict)
         except zk.ZettelkastenException as e:

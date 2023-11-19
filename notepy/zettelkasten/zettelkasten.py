@@ -573,7 +573,7 @@ class Zettelkasten(GitMixin):
         return last_content
 
     def next(self, title: str,
-             zk_id: Optional[int] = None,
+             zk_id: int,
              confirmation: bool = False,
              strict: bool = False) -> None:
         """
@@ -587,10 +587,6 @@ class Zettelkasten(GitMixin):
         self._check_zettelkasten()
         # check title is unique
         self._check_unique_title(title)
-
-        # get ID of last note
-        if zk_id is None:
-            zk_id = self.get_last()
 
         # check that the note exists
         if not self._note_exists(zk_id):
