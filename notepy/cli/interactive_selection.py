@@ -65,6 +65,9 @@ class Interactive:
                 text = text[:cursor_pos] + text[cursor_pos+1:] if self.cursor_pos > 0 else text
                 self.cursor_pos = cursor_pos
                 pos = 0
+            case curses.KEY_DC:
+                text = text[:self.cursor_pos] + text[self.cursor_pos+1:] if self.cursor_pos <= len(text) else text
+                pos = 0
             case curses.KEY_LEFT:
                 # check cursor position
                 self.cursor_pos = self.check_cursor_pos(text, self.cursor_pos-1)
