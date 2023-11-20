@@ -62,9 +62,6 @@ class Interactive:
                 pos += 1
             case curses.KEY_RESIZE:
                 curses.resize_term(*self.w.getmaxyx())
-                current_position = pos - self.relative_start + POSITION_OFFSET
-                if current_position > curses.LINES:
-                    self.relative_start = pos - curses.LINES + POSITION_OFFSET
                 redraw = True
             case curses.KEY_BACKSPACE:
                 cursor_pos = self.check_cursor_pos(text, self.cursor_pos-1)
@@ -72,11 +69,13 @@ class Interactive:
                 self.cursor_pos = cursor_pos
                 if text != new_text:
                     pos = 0
+                    self.relative_start = 0
                 text = new_text
             case curses.KEY_DC:
                 new_text = text[:self.cursor_pos] + text[self.cursor_pos+1:] if self.cursor_pos <= len(text) else text
                 if text != new_text:
                     pos = 0
+                    self.relative_start = 0
                 text = new_text
             case curses.KEY_LEFT:
                 # check cursor position
@@ -90,12 +89,16 @@ class Interactive:
                 if self.cursor_pos < curses.COLS-1:
                     self.cursor_pos += 1
                 pos = 0
+                self.relative_start = 0
 
         return text, pos, endit, redraw
 
     def check_pos(self, pos, results):
         length = len(results)
         redraw = False
+        current_position = pos - self.relative_start + POSITION_OFFSET
+        if current_position > curses.LINES:
+            self.relative_start = pos - curses.LINES + POSITION_OFFSET
         if pos < 0:
             pos = length - 1
             if length >= curses.LINES - POSITION_OFFSET:
